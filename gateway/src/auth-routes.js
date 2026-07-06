@@ -148,7 +148,7 @@ export function createAuthRoutes({ config, db, limits = {}, rcon = null }) {
     }
     const { token, expiresAt } = db.createSession(user.id, config.sessionTtlHours * 3_600_000);
     const playUrl =
-      `/?ip=${config.mcHost}:${config.mcPort}` +
+      `/?ip=${config.publicServerAddress || `${config.mcHost}:${config.mcPort}`}` +
       `&version=${encodeURIComponent(config.clientMcVersion || config.mcVersion)}` +
       `&username=${encodeURIComponent(user.username)}` +
       `&token=${token}&autoConnect=true&lockConnect=true`;

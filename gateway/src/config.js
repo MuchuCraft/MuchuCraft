@@ -27,6 +27,10 @@ export function loadConfig(rootDir = DEFAULT_ROOT) {
     // translates it to mcVersion. The bundled client's mesher lacks data for
     // the newest server versions, so these can legitimately differ.
     clientMcVersion: env.CLIENT_MC_VERSION || env.MC_VERSION || '1.21.1',
+    // Address shown to players as "the server" (multiplayer list, playUrl).
+    // Cosmetic: the proxy always dials mcHost:mcPort regardless of what the
+    // client asks for, so this can be the public hostname.
+    publicServerAddress: env.PUBLIC_SERVER_ADDRESS || `${env.MC_HOST || '127.0.0.1'}:${env.MC_PORT || 25565}`,
     rconPort: toInt(env.RCON_PORT, 25575),
     rconPassword: env.RCON_PASSWORD || '',
     sessionTtlHours: toInt(env.SESSION_TTL_HOURS, 24),

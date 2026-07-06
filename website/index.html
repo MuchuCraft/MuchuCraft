@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MuchuCraft — real Minecraft in your browser, your wallet is your name</title>
+<meta name="description" content="A wallet-verified Minecraft survival server you play in the browser. Connect a Solana wallet, claim your username forever, and walk out of the gates. Server: web.muchu.app">
+<meta name="theme-color" content="#0b0b0d">
+<meta property="og:title" content="MuchuCraft">
+<meta property="og:description" content="Real Minecraft. In your browser. Your wallet is your name.">
+<meta property="og:image" content="/assets/shots/hero.png">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="preload" href="/assets/fonts/space-grotesk-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/space-grotesk-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="bar">
+  <a class="wordmark" href="/"><img src="/assets/favicon.png" alt="" width="22" height="22">MUCHUCRAFT</a>
+  <nav><a class="bar-play" href="/login/">Play&nbsp;→</a></nav>
+</header>
+
+<main>
+  <section class="hero">
+    <img class="hero-img" src="/assets/shots/hero.png" alt="The Amethyst Compass — MuchuCraft's spawn plaza at noon" fetchpriority="high">
+    <div class="hero-scrim" aria-hidden="true"></div>
+    <div class="hero-copy">
+      <p class="eyebrow">A wallet-verified survival server</p>
+      <h1>Real Minecraft.<br>In your browser.</h1>
+      <p class="lede">No download. No launcher. No password. Connect a Solana wallet,
+      claim a username that's yours forever, and step off the dais.</p>
+      <div class="cta-row">
+        <a class="btn" href="/login/">Play now</a>
+        <a class="quiet" href="/play/">open the raw client →</a>
+      </div>
+      <p class="server-line">server&nbsp;address&nbsp;·&nbsp;<span>web.muchu.app</span></p>
+    </div>
+  </section>
+
+  <section class="steps reveal" aria-label="How to play">
+    <div class="step">
+      <span class="num">01</span>
+      <h2>Connect a wallet</h2>
+      <p>Phantom, Solflare, Backpack — anything that speaks Solana. Signing is free and
+      never touches your funds.</p>
+    </div>
+    <div class="step">
+      <span class="num">02</span>
+      <h2>Claim your name</h2>
+      <p>One signature binds your username to your wallet. Taken names stay taken —
+      there is no <em>/register</em>, and nothing to forget.</p>
+    </div>
+    <div class="step">
+      <span class="num">03</span>
+      <h2>Spawn</h2>
+      <p>The world opens in the same tab. Survival rules, protected spawn, six thousand
+      blocks of snow and cherry blossom.</p>
+    </div>
+  </section>
+
+  <figure class="ui-shot reveal">
+    <img src="/assets/shots/launcher.png" alt="The sign-in screen: wallet connected, username availability checked live" loading="lazy">
+    <figcaption>The whole login. If a name is taken, you'll know before you sign.</figcaption>
+  </figure>
+
+  <section class="economy reveal" id="muchu">
+    <div class="economy-copy">
+      <h2>The coin is real.</h2>
+      <p>The in-game currency is <strong>MUCHU</strong>, a Solana token, one-for-one.
+      You earn it by working jobs — mining, building, farming, hunting. You spend it on
+      land, gear, and cosmetics. You can withdraw your balance to your wallet, and
+      deposit tokens back in to unlock every job on the server.</p>
+      <p class="fine">Every coin in the game is backed by tokens in the treasury; if that
+      ever stopped being true, withdrawals pause themselves. Currently on
+      <span class="badge" id="cluster-badge" hidden></span> — play money while we tune.</p>
+      <ul class="stat-list">
+        <li>1:1 backed</li>
+        <li>withdraw on-chain</li>
+        <li>deposit → all 12 jobs</li>
+        <li>daily caps, no hype</li>
+      </ul>
+    </div>
+    <figure class="economy-shot">
+      <img src="/assets/shots/wallet-card.png" alt="The wallet card: in-game balance, withdraw, deposit, skins" loading="lazy">
+      <figcaption>Balance, withdraw, deposit, skin — one card.</figcaption>
+    </figure>
+  </section>
+
+  <section class="server reveal">
+    <p class="eyebrow">Like the old days</p>
+    <h2 class="server-address">web.muchu.app</h2>
+    <p class="lede-narrow">That's the server. It shows up as the recommended entry the
+    moment you open multiplayer — or type it anywhere the client asks for an address.</p>
+    <figure class="ui-shot">
+      <img src="/assets/shots/multiplayer.png" alt="The multiplayer screen with MuchuCraft as the recommended server" loading="lazy">
+      <figcaption>The multiplayer screen. One entry, no clutter.</figcaption>
+    </figure>
+  </section>
+
+  <section class="faq reveal" aria-label="Questions">
+    <h2>Questions</h2>
+    <details>
+      <summary>Is this actually Minecraft?</summary>
+      <p>Yes — a real Paper server with real plugins. The browser client is the
+      open-source project behind mcraft.fun and speaks the genuine Minecraft protocol.
+      Java Edition survival, not a remake.</p>
+    </details>
+    <details>
+      <summary>What does signing cost?</summary>
+      <p>Nothing. A signature is a proof, not a transaction — no fees, no approvals, and
+      the server never touches your funds.</p>
+    </details>
+    <details>
+      <summary>Can someone take my username?</summary>
+      <p>No. The name is bound to your wallet, and the server kills any connection that
+      tries to use your name without your session. Losing the wallet means losing the
+      name, so keep it safe.</p>
+    </details>
+    <details>
+      <summary>Is my stuff safe?</summary>
+      <p>Spawn is fully protected. In the wild, claim land with a golden shovel — claimed
+      blocks can't be broken by anyone else. You start with 200 claim blocks and accrue
+      more every hour.</p>
+    </details>
+    <details>
+      <summary>Can I really cash out?</summary>
+      <p>Yes — withdrawals send real tokens to the wallet that owns your name, and only
+      that wallet. It's on devnet today, so treat MUCHU as arcade money until mainnet.</p>
+    </details>
+  </section>
+</main>
+
+<footer class="foot">
+  <div>
+    <a href="https://github.com/MuchuCraft/MuchuCraft">source on GitHub</a>
+    <span class="dot">·</span>
+    <a href="/login/">play</a>
+  </div>
+  <p>Not affiliated with Mojang or Microsoft. Minecraft is a trademark of Mojang Synergies AB.</p>
+</footer>
+
+<script src="/site.js" defer></script>
+</body>
+</html>

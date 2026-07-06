@@ -27,7 +27,7 @@ const CLIENT_QUERY_PARAMS = ['ip', 'token', 'username', 'version', 'autoConnect'
  * dist/config.json (unused by this client build, but SPEC-PHASE3 §3 serves it).
  */
 function clientConfigOverrides(config) {
-  const hostPort = `${config.mcHost}:${config.mcPort}`;
+  const hostPort = config.publicServerAddress || `${config.mcHost}:${config.mcPort}`;
   return {
     defaultProxy: '',
     allowAutoConnect: true,
