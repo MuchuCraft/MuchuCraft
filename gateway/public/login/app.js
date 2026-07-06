@@ -1042,6 +1042,10 @@
         throw err;
       }
       lsSet(LS.username, session.username);
+      // The server rebuilds playUrl on every session check — always take it
+      // over any stored copy, so version/address changes reach returning
+      // players instead of stranding them on a stale cached URL.
+      if (session.playUrl) lsSet(LS.playUrl, session.playUrl);
       $('session-name').textContent = session.username;
       renderSkinControls(token, session.skin);
       showView('view-session');

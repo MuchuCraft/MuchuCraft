@@ -163,11 +163,20 @@ export function createAuthRoutes({ config, db, limits = {}, rcon = null }) {
     if (!info) {
       return res.status(401).json({ error: 'Missing, expired, or revoked session token.' });
     }
+    // Always hand back a FRESH playUrl: clients must never replay a stored
+    // one, or version/address changes (e.g. the 1.21.4 client pin) strand
+    // returning players on a broken cached URL.
+    const playUrl =
+      `/?ip=${config.publicServerAddress || `${config.mcHost}:${config.mcPort}`}` +
+      `&version=${encodeURIComponent(config.clientMcVersion || config.mcVersion)}` +
+      `&username=${encodeURIComponent(info.username)}` +
+      `&token=${token}&autoConnect=true&lockConnect=true`;
     res.json({
       username: info.username,
       address: info.address,
       expiresAt: info.expiresAt,
       skin: info.skin ?? null,
+      playUrl,
     });
   });
 
