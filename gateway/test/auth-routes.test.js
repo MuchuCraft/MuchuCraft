@@ -258,26 +258,16 @@ test('static plumbing: healthz, merged config.json, bare-/ site vs game client',
     },
   ], 'promoteServers must replace the upstream mcraft.fun promos wholesale');
 
-  // Bare / (no query) serves the marketing site — no redirect (SPEC-PHASE3 §3).
+  // Bare / (no query) bounces to the wallet launcher — the marketing site
+  // lives on Vercel (muchu.app), web.muchu.app is game-only.
   const bare = await fetch(`${base}/`, { redirect: 'manual' });
-  assert.equal(bare.status, 200);
-  assert.match(bare.headers.get('content-type') ?? '', /text\/html/);
-  const siteHtml = await bare.text();
-  assert.match(siteHtml, /PLAY NOW/, 'site hero must carry the PLAY NOW button');
-  assert.match(siteHtml, /href="\/login\/"/, 'PLAY NOW must point at /login/');
-  assert.match(siteHtml, /href="\/\?play=1"/, 'secondary CTA must open the game client');
+  assert.equal(bare.status, 302);
+  assert.equal(bare.headers.get('location'), '/login/');
 
-  // Any client query param (incl. the site's ?play=1) falls through to the
-  // game client dist, never the site and never a /login/ bounce.
+  // Any client query param (incl. ?play=1) falls through to the game client
+  // dist, never a /login/ bounce.
   for (const qs of ['?play=1', '?ip=127.0.0.1:25565&token=x', '?singleplayer=1']) {
     const res = await fetch(`${base}/${qs}`, { redirect: 'manual' });
     assert.equal(res.status, 200, `GET /${qs} must serve the client dist`);
-    const html = await res.text();
-    assert.doesNotMatch(html, /PLAY NOW/, `GET /${qs} must not serve the site page`);
   }
-
-  // Site assets are mounted under /site/*.
-  const css = await fetch(`${base}/site/site.css`);
-  assert.equal(css.status, 200);
-  assert.match(css.headers.get('content-type') ?? '', /text\/css/);
 });

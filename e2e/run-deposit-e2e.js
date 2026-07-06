@@ -49,7 +49,7 @@ try {
 }
 
 const GATEWAY = process.env.GATEWAY_URL ?? `http://localhost:${process.env.PORT ?? '8080'}`;
-const MC_VERSION = process.env.MC_VERSION;
+const MC_VERSION = process.env.CLIENT_MC_VERSION || process.env.MC_VERSION;
 const RPC_URL = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
 const MUCHU_MINT = (process.env.MUCHU_MINT ?? '').trim();
 const DECIMALS = Number(process.env.MUCHU_DECIMALS ?? '6');

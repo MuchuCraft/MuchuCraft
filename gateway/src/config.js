@@ -23,6 +23,10 @@ export function loadConfig(rootDir = DEFAULT_ROOT) {
     mcHost: env.MC_HOST || '127.0.0.1',
     mcPort: toInt(env.MC_PORT, 25565),
     mcVersion: env.MC_VERSION || '1.21.1',
+    // Version the BROWSER client speaks/renders; ViaBackwards on the server
+    // translates it to mcVersion. The bundled client's mesher lacks data for
+    // the newest server versions, so these can legitimately differ.
+    clientMcVersion: env.CLIENT_MC_VERSION || env.MC_VERSION || '1.21.1',
     rconPort: toInt(env.RCON_PORT, 25575),
     rconPassword: env.RCON_PASSWORD || '',
     sessionTtlHours: toInt(env.SESSION_TTL_HOURS, 24),

@@ -37,7 +37,7 @@ function clientConfigOverrides(config) {
         ip: hostPort,
         name: 'MuchuCraft',
         description: 'Wallet-verified survival — muchucraft',
-        version: config.mcVersion,
+        version: config.clientMcVersion || config.mcVersion,
       },
     ],
   };
@@ -116,7 +116,6 @@ export function createApp({ config, db, netProxy = null, tokenRoutes = null, lim
 
   // --- static -------------------------------------------------------------
   const loginDir = path.join(config.root, 'gateway', 'public', 'login');
-  const siteDir = path.join(config.root, 'gateway', 'public', 'site');
   const clientDist = path.join(config.root, 'client', 'dist');
   if (!fs.existsSync(clientDist)) {
     console.warn(`[gateway] client dist missing at ${clientDist} — build the client bundle; serving login page only`);
@@ -134,19 +133,16 @@ export function createApp({ config, db, netProxy = null, tokenRoutes = null, lim
     res.json(deepMerge(base, configOverrides));
   });
 
-  // Bare visits serve the marketing site; any client query param (ip/token/…
-  // or the site's ?play=1) falls through to the game client dist (SPEC-PHASE3 §3).
+  // web.muchu.app is the GAME host: the marketing site lives on Vercel
+  // (muchu.app) and links here. Bare visits go straight to the wallet
+  // launcher; any client query param (ip/token/… or ?play=1) falls through
+  // to the game client dist.
   app.get(['/', '/index.html'], (req, res, next) => {
     if (CLIENT_QUERY_PARAMS.some((p) => req.query[p] !== undefined)) return next();
-    res.sendFile(path.join(siteDir, 'index.html'), (err) => {
-      if (!err) return;
-      if (!res.headersSent) return res.redirect(302, '/login/'); // site missing — degrade to launcher
-      res.end(); // stream failed mid-flight; nothing sane left to send
-    });
+    res.redirect(302, '/login/');
   });
 
   app.use('/login', express.static(loginDir));
-  app.use('/site', express.static(siteDir));
   app.use(express.static(clientDist));
 
   return { app };

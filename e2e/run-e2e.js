@@ -20,7 +20,7 @@ try {
 }
 
 const GATEWAY = process.env.GATEWAY_URL ?? `http://localhost:${process.env.PORT ?? '8080'}`;
-const MC_VERSION = process.env.MC_VERSION;
+const MC_VERSION = process.env.CLIENT_MC_VERSION || process.env.MC_VERSION;
 const USERNAME = 'E2ETester';
 const IMPOSTOR = 'Impostor';
 const GLOBAL_TIMEOUT_MS = 4 * 60 * 1000;

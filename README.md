@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/site-hero.png" alt="MuchuCraft landing page" width="800">
+  <img src="docs/screenshots/spawn-plaza.png" alt="The Amethyst Compass — MuchuCraft's spawn plaza" width="800">
 </p>
 
 ---
@@ -75,6 +75,10 @@ You arrive on a crying-obsidian dais at the heart of a purpur-and-amethyst plaza
 terraced into a snowy mountain beside a cherry-grove village. It's fully protected —
 no building, no PvP, no mobs, no creeper craters — so it always looks like home.
 Four gates point you out into the world.
+
+(The browser renders the world at Minecraft 1.21.8 — the newest version the web
+client's renderer supports — while the server runs 1.21.11; the ViaBackwards plugin
+translates between them invisibly.)
 
 ## The multiplayer screen knows the way
 

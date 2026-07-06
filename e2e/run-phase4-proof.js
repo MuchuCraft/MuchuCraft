@@ -40,7 +40,7 @@ const require2 = createRequire(path.join(ROOT, 'gateway', 'package.json'));
 const { Rcon } = require2('rcon-client');
 
 const GATEWAY = process.env.GATEWAY_URL ?? `http://localhost:${process.env.PORT ?? '8090'}`;
-const MC_VERSION = process.env.MC_VERSION;
+const MC_VERSION = process.env.CLIENT_MC_VERSION || process.env.MC_VERSION;
 const USERNAME = process.env.PROOF_USERNAME ?? 'GriefTester';
 const SPAWN = { x: 0.5, y: 118, z: 0.5 };
 const GLOBAL_TIMEOUT_MS = 9 * 60 * 1000;

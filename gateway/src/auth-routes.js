@@ -149,7 +149,7 @@ export function createAuthRoutes({ config, db, limits = {}, rcon = null }) {
     const { token, expiresAt } = db.createSession(user.id, config.sessionTtlHours * 3_600_000);
     const playUrl =
       `/?ip=${config.mcHost}:${config.mcPort}` +
-      `&version=${encodeURIComponent(config.mcVersion)}` +
+      `&version=${encodeURIComponent(config.clientMcVersion || config.mcVersion)}` +
       `&username=${encodeURIComponent(user.username)}` +
       `&token=${token}&autoConnect=true&lockConnect=true`;
     console.log(`[auth] verified ${user.username} (${address.slice(0, 4)}…${address.slice(-4)})`);

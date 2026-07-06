@@ -181,6 +181,13 @@ download_pinned jobs "Jobs5.2.6.3.jar" \
 
 # GriefPrevention 16.18.7 (Modrinth version dGfCZHqk — immutable CDN URL,
 # supports MC 1.21.10/1.21.11, api-version 1.21.10).
+# ViaBackwards (companion to ViaVersion): lets OLDER-version clients join this
+# newer server — required because the bundled web client renders at most 1.21.8
+# (its mesher lacks 1.21.11 data); clients connect as CLIENT_MC_VERSION.
+download_pinned viabackwards "ViaBackwards.jar" \
+  "2a983da56aa0911568155e2cb628b934632ce4e87fa4012d16386d97125a2180ce2af12500a5fc41d93f62cf7ce4f13671341b55af552517f82cac18209dab53" \
+  "https://cdn.modrinth.com/data/NpvuJQoq/versions/7KSOhnMT/ViaBackwards-5.10.1-SNAPSHOT.jar"
+
 download_pinned griefprevention "GriefPrevention-16.18.7.jar" \
   "c9bc692253ba3860327e5c38767ce3dc66c798264fe650a08b4ae888337ff75bc16e9bd1db7b39a514a275bf2cc2a3f1f8cd95cf080b89ae42a0f684fc2bfc66" \
   "https://cdn.modrinth.com/data/O4o4mKaq/versions/dGfCZHqk/GriefPrevention.jar"

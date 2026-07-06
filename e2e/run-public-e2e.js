@@ -26,7 +26,7 @@ try {
 }
 
 const BASE = process.argv[2] ?? process.env.PUBLIC_BASE ?? 'https://web.muchu.app';
-const MC_VERSION = process.env.MC_VERSION;
+const MC_VERSION = process.env.CLIENT_MC_VERSION || process.env.MC_VERSION;
 const EXPECTED_SIWS_DOMAIN = 'web.muchu.app';
 const USERNAME = `PublicBot${Math.random().toString(36).slice(2, 7)}`; // ≤16 chars
 const GLOBAL_TIMEOUT_MS = 5 * 60 * 1000;
