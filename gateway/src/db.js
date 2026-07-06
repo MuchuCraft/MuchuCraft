@@ -51,6 +51,15 @@ export function createDb(dbPath = ':memory:') {
   db.exec('PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
 
+  // --- additive migrations (guarded, idempotent) ----------------------------
+  // SPEC-PHASE3.md §4: users.skin holds "name:<mcname>" | "url:<https .png>"
+  // or NULL. ALTER TABLE only when the column is missing (PRAGMA table_info
+  // check), so re-opening an already-migrated DB is a no-op.
+  const userColumns = db.prepare('PRAGMA table_info(users)').all();
+  if (!userColumns.some((col) => col.name === 'skin')) {
+    db.exec('ALTER TABLE users ADD COLUMN skin TEXT NULL');
+  }
+
   const stmt = {
     insertNonce: db.prepare(
       'INSERT INTO nonces (nonce, username, address, message, expires_at, used) VALUES (?, ?, ?, ?, ?, 0)',
@@ -67,10 +76,11 @@ export function createDb(dbPath = ':memory:') {
     ),
     getSession: db.prepare('SELECT * FROM sessions WHERE token = ?'),
     getSessionInfo: db.prepare(
-      `SELECT s.user_id AS userId, s.expires_at AS expiresAt, u.username AS username, u.address AS address
+      `SELECT s.user_id AS userId, s.expires_at AS expiresAt, u.username AS username, u.address AS address, u.skin AS skin
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token = ? AND s.revoked = 0 AND s.expires_at > ?`,
     ),
+    setSkin: db.prepare('UPDATE users SET skin = ? WHERE id = ?'),
     revokeSession: db.prepare('UPDATE sessions SET revoked = 1 WHERE token = ?'),
     cleanNonces: db.prepare('DELETE FROM nonces WHERE expires_at <= ? OR used = 1'),
     cleanSessions: db.prepare('DELETE FROM sessions WHERE expires_at <= ? OR revoked = 1'),
@@ -123,6 +133,14 @@ export function createDb(dbPath = ':memory:') {
   }
 
   /**
+   * Store (or clear with null) the user's skin descriptor — already validated
+   * by the caller (auth-routes validateSkin). Returns true iff a row changed.
+   */
+  function setUserSkin(userId, skin) {
+    return stmt.setSkin.run(skin ?? null, userId).changes === 1;
+  }
+
+  /**
    * Bump users.last_login_at. Returns { firstLogin } — true only on the very
    * first login of that user. Synchronous (proxy contract).
    */
@@ -147,7 +165,7 @@ export function createDb(dbPath = ':memory:') {
   }
 
   /**
-   * Proxy-facing lookup: null | { userId, username, address, expiresAt }.
+   * Proxy-facing lookup: null | { userId, username, address, skin, expiresAt }.
    * Already checks expiry + revocation. Synchronous (proxy contract).
    */
   function getSessionInfo(token, now = Date.now()) {
@@ -190,6 +208,7 @@ export function createDb(dbPath = ':memory:') {
     consumeNonce,
     getUserByName,
     claimUsername,
+    setUserSkin,
     markLogin,
     createSession,
     getSession,

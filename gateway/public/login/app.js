@@ -902,6 +902,110 @@
   }
 
   /* ---------------------------------------------------------------- *
+   * Skin picker (SPEC-PHASE3 §4)                                      *
+   * The gateway stores "name:<mcname>" | "url:<https .png>"; the user *
+   * types just the username or URL and we add the prefix. Applied by  *
+   * the gateway on every join (and immediately when already online).  *
+   * ---------------------------------------------------------------- */
+
+  const SKIN_MAX_LEN = 300;
+  const skinState = { token: null, current: null, saving: false };
+
+  function setSkinStatus(text, kind) {
+    const el = $('skin-status');
+    el.textContent = text || '';
+    el.className = 'status' + (kind ? ` status-${kind}` : '');
+  }
+
+  /** Stored descriptor -> what the input shows (prefix stripped). */
+  function skinDisplayValue(stored) {
+    if (typeof stored !== 'string') return '';
+    if (stored.startsWith('name:')) return stored.slice(5);
+    if (stored.startsWith('url:')) return stored.slice(4);
+    return stored;
+  }
+
+  /**
+   * Input text -> stored descriptor. Mirrors the gateway's validation
+   * (the gateway is authoritative). Returns {value} (null value = clear)
+   * or {error}.
+   */
+  function skinDescriptorFromInput(text) {
+    const v = String(text || '').trim();
+    if (v.length === 0) return { value: null };
+    if (/^https?:\/\//i.test(v)) {
+      if (!/^https:\/\//i.test(v)) return { error: 'Skin URLs must use https.' };
+      if (/\s/.test(v)) return { error: 'Skin URLs cannot contain spaces.' };
+      if (!/\.png$/i.test(v)) return { error: 'Skin URLs must end in .png.' };
+      if (v.length + 4 > SKIN_MAX_LEN) return { error: 'That URL is too long (300 characters max).' };
+      return { value: `url:${v}` };
+    }
+    if (!USERNAME_RE.test(v)) {
+      return { error: 'Use a Minecraft username (3–16 letters, numbers, _) or an https URL ending in .png.' };
+    }
+    return { value: `name:${v}` };
+  }
+
+  function renderSkinControls(sessionToken, storedSkin) {
+    skinState.token = sessionToken;
+    skinState.current = typeof storedSkin === 'string' && storedSkin ? storedSkin : null;
+    skinState.saving = false;
+    $('skin-input').value = skinDisplayValue(skinState.current);
+    setSkinStatus(skinState.current ? 'Current skin shown above — applies when you join.' : '', '');
+  }
+
+  async function onSkinSave() {
+    if (skinState.saving || !skinState.token) return;
+    const parsed = skinDescriptorFromInput($('skin-input').value);
+    if (parsed.error) {
+      setSkinStatus(parsed.error, 'bad');
+      return;
+    }
+    if (parsed.value === null && skinState.current === null) {
+      setSkinStatus('Type a Minecraft username or an https PNG URL first.', 'warn');
+      return;
+    }
+    skinState.saving = true;
+    const btn = $('btn-skin-save');
+    btn.disabled = true;
+    setSkinStatus('Saving skin…', 'pending');
+    try {
+      const data = await api('/api/auth/skin', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${skinState.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skin: parsed.value }),
+      });
+      skinState.current = data && typeof data.skin === 'string' ? data.skin : null;
+      setSkinStatus(
+        skinState.current ? 'Skin saved ✓ — applies when you join.' : 'Skin cleared ✓ — back to the default.',
+        'good',
+      );
+    } catch (err) {
+      if (err && (err.status === 401 || err.status === 403)) {
+        setSkinStatus('Your session expired — refresh the page and sign in again.', 'bad');
+      } else {
+        setSkinStatus((err && err.message) || 'Could not save the skin — please try again.', 'bad');
+      }
+    } finally {
+      skinState.saving = false;
+      btn.disabled = false;
+    }
+  }
+
+  function wireSkinControls() {
+    $('btn-skin-save').addEventListener('click', onSkinSave);
+    $('skin-input').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') onSkinSave();
+    });
+    for (const btn of document.querySelectorAll('.skin-preset')) {
+      btn.addEventListener('click', () => {
+        $('skin-input').value = skinDisplayValue(btn.dataset.skin);
+        setSkinStatus(`Preset "${btn.textContent.trim()}" selected — press Save skin.`, 'pending');
+      });
+    }
+  }
+
+  /* ---------------------------------------------------------------- *
    * Session resume & view wiring                                      *
    * ---------------------------------------------------------------- */
 
@@ -939,6 +1043,7 @@
       }
       lsSet(LS.username, session.username);
       $('session-name').textContent = session.username;
+      renderSkinControls(token, session.skin);
       showView('view-session');
       initWalletCard(token); // fire-and-forget: card appears only if token economy is live
     } catch (err) {
@@ -967,6 +1072,7 @@
       lsClear();
       resetConnection();
       teardownWalletCard();
+      renderSkinControls(null, null);
       setBanner('');
       enterWalletsView();
     });
@@ -979,5 +1085,6 @@
   }
 
   wireEvents();
+  wireSkinControls();
   init();
 })();

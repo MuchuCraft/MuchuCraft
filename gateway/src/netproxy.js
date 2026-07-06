@@ -19,7 +19,7 @@ const PING_PATH = '/api/vm/net/ping';
 /**
  * @param {object} opts
  * @param {{mcHost:string, mcPort:number, mcVersion:string, rconPort:number, rconPassword:string}} opts.env
- * @param {(token: string) => null | {userId:number, username:string, address:string}} opts.sessionLookup
+ * @param {(token: string) => null | {userId:number, username:string, address:string, skin?:string|null}} opts.sessionLookup
  * @param {(userId: number) => {firstLogin: boolean}} opts.markLogin
  * Remaining options are tunables/injection points for tests; production
  * callers (index.js) pass only the three above and get the defaults.
@@ -33,6 +33,12 @@ export function createNetProxy({
   sniffTimeoutMs = 10_000,
   dialTimeoutMs = 5_000,
   rconDelayMs = 4_000,
+  // The skin apply must not fire before the player finishes the configuration
+  // phase and is visible online, or SkinsRestorer's <selector> misses (verified
+  // live: an apply 2s after the Login Start sniff persisted nothing, while the
+  // same command 3s after spawn stored players/<uuid>.player + skins/*.playerskin).
+  // 6s is comfortably after the proven-reliable 4s welcome tellraw.
+  skinDelayMs = 6_000,
   rcon = createRcon({ host: '127.0.0.1', port: env.rconPort, password: env.rconPassword }),
 }) {
   /** single-use connection tokens: token -> {session, socket, timer} */
@@ -253,6 +259,16 @@ export function createNetProxy({
               rconDelayMs,
             );
             welcomeTimer.unref?.();
+            if (session.skin) {
+              // SPEC-PHASE3 §4: apply the stored skin shortly after join via
+              // the SkinsRestorer console command (rcon.applySkin, never
+              // throws) — see skinDelayMs above for the 6s timing rationale.
+              const skinTimer = setTimeout(
+                () => rcon.applySkin?.(session.username, session.skin),
+                skinDelayMs,
+              );
+              skinTimer.unref?.();
+            }
           } else {
             console.warn(
               `[proxy] username mismatch: logged in as "${username}" but session owns "${session.username}"`,

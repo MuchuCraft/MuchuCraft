@@ -11,10 +11,37 @@ import { loadConfig } from './config.js';
 import { createDb } from './db.js';
 import { createAuthRoutes } from './auth-routes.js';
 
-const CLIENT_CONFIG_OVERRIDES = {
-  defaultProxy: '',
-  allowAutoConnect: true,
-};
+/**
+ * Query params that mean "open the game client" on a bare-/ visit. Everything
+ * the shipped client reads from location.search (client/NOTES.md §5) plus our
+ * own `?play=1` marker used by the site's "Open game client" button.
+ */
+const CLIENT_QUERY_PARAMS = ['ip', 'token', 'username', 'version', 'autoConnect', 'play', 'singleplayer'];
+
+/**
+ * Overrides layered on top of the client's dist/config.json (client/NOTES.md
+ * §4.2). promoteServers entries are `{ip, name, description, version}` — the
+ * shipped client maps `version` → versionOverride (verified in dist
+ * index.e3d79375.js); deepMerge replaces arrays wholesale, so this drops the
+ * upstream mcraft.fun promos. `defaultHost` mirrors the key already present in
+ * dist/config.json (unused by this client build, but SPEC-PHASE3 §3 serves it).
+ */
+function clientConfigOverrides(config) {
+  const hostPort = `${config.mcHost}:${config.mcPort}`;
+  return {
+    defaultProxy: '',
+    allowAutoConnect: true,
+    defaultHost: hostPort,
+    promoteServers: [
+      {
+        ip: hostPort,
+        name: 'MuchuCraft',
+        description: 'Wallet-verified survival — muchucraft',
+        version: config.mcVersion,
+      },
+    ],
+  };
+}
 
 /** Deep-merge `extra` on top of `base` (plain objects only; arrays replaced). */
 function deepMerge(base, extra) {
@@ -89,12 +116,14 @@ export function createApp({ config, db, netProxy = null, tokenRoutes = null, lim
 
   // --- static -------------------------------------------------------------
   const loginDir = path.join(config.root, 'gateway', 'public', 'login');
+  const siteDir = path.join(config.root, 'gateway', 'public', 'site');
   const clientDist = path.join(config.root, 'client', 'dist');
   if (!fs.existsSync(clientDist)) {
     console.warn(`[gateway] client dist missing at ${clientDist} — build the client bundle; serving login page only`);
   }
 
   // Merged client config (must win over the static dist/config.json).
+  const configOverrides = clientConfigOverrides(config);
   app.get('/config.json', (req, res) => {
     let base = {};
     try {
@@ -102,16 +131,22 @@ export function createApp({ config, db, netProxy = null, tokenRoutes = null, lim
     } catch {
       // dist or config.json missing — serve overrides only
     }
-    res.json(deepMerge(base, CLIENT_CONFIG_OVERRIDES));
+    res.json(deepMerge(base, configOverrides));
   });
 
-  // Bare visits (no ip/token params) go to the wallet launcher.
+  // Bare visits serve the marketing site; any client query param (ip/token/…
+  // or the site's ?play=1) falls through to the game client dist (SPEC-PHASE3 §3).
   app.get(['/', '/index.html'], (req, res, next) => {
-    if (!req.query.ip && !req.query.token) return res.redirect(302, '/login/');
-    next();
+    if (CLIENT_QUERY_PARAMS.some((p) => req.query[p] !== undefined)) return next();
+    res.sendFile(path.join(siteDir, 'index.html'), (err) => {
+      if (!err) return;
+      if (!res.headersSent) return res.redirect(302, '/login/'); // site missing — degrade to launcher
+      res.end(); // stream failed mid-flight; nothing sane left to send
+    });
   });
 
   app.use('/login', express.static(loginDir));
+  app.use('/site', express.static(siteDir));
   app.use(express.static(clientDist));
 
   return { app };
@@ -149,6 +184,8 @@ async function main() {
       console.warn('[token] MUCHU_MINT not set — /api/token disabled (run devnet setup, then restart)');
     } else {
       tokenModule = createTokenModule({ config, tokenConfig, db });
+      // Deposits (SPEC-PHASE3 §1): watcher + routes + bridge push, wired in place.
+      (await import('./token/deposits.js')).attachDeposits({ tokenModule, config, tokenConfig, db, promoteToDepositor: (await import('./token/rcon-gate.js')).promoteToDepositor });
       console.log(`[token] /api/token enabled (cluster ${tokenConfig.cluster}, mint ${tokenConfig.mint})`);
     }
   } catch (err) {

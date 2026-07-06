@@ -23,21 +23,25 @@ import java.util.regex.Pattern;
  *   POST /debit  {player, amount, ref} → {ok:true, newBalance} | 409 insufficient
  *   POST /credit {player, amount, ref} → {ok:true, newBalance}
  *   POST /balances {players:[...]}     → {balances:{name:"12.34", ...}}
+ *   POST /deposit-info {address, minimum, gateThreshold} → {ok:true}  (powers /deposit)
  * Every request needs "Authorization: Bearer BRIDGE_TOKEN" (constant-time compare).
  */
 final class BridgeHandler implements HttpHandler {
     private static final int MAX_BODY_BYTES = 64 * 1024;
     private static final Pattern AMOUNT = Pattern.compile("^[0-9]{1,12}(\\.[0-9]{1,6})?$");
     private static final Pattern PLAYER = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
+    private static final Pattern ADDRESS = Pattern.compile("^[1-9A-HJ-NP-Za-km-z]{32,44}$"); // base58 pubkey
 
     private final MuchuBridgePlugin plugin;
     private final EcoOps eco;
     private final byte[] token;
+    private final DepositInfo deposits;
 
-    BridgeHandler(MuchuBridgePlugin plugin, byte[] token) {
+    BridgeHandler(MuchuBridgePlugin plugin, byte[] token, DepositInfo deposits) {
         this.plugin = plugin;
         this.eco = new EcoOps(plugin);
         this.token = token;
+        this.deposits = deposits;
     }
 
     @Override
@@ -83,8 +87,27 @@ final class BridgeHandler implements HttpHandler {
                         .forEach((name, bal) -> balances.put(name, bal.toPlainString()));
                 send(ex, 200, Json.write(Map.of("balances", balances)));
             }
+            case "/deposit-info" -> {
+                requireMethod(ex, "POST");
+                Map<String, Object> body = body(ex);
+                if (!(body.get("address") instanceof String address) || !ADDRESS.matcher(address).matches()) {
+                    throw new ApiError(400, "missing or invalid address");
+                }
+                String minimum = requireAmountString(body.get("minimum"), "minimum");
+                String gateThreshold = requireAmountString(body.get("gateThreshold"), "gateThreshold");
+                deposits.set(address, minimum, gateThreshold);
+                send(ex, 200, Json.write(Map.of("ok", true)));
+            }
             default -> throw new ApiError(404, "not found");
         }
+    }
+
+    /** Non-negative plain decimal string, ≤6 dp (zero allowed — it is a threshold, not a payment). */
+    private static String requireAmountString(Object v, String field) {
+        if (!(v instanceof String s) || !AMOUNT.matcher(s).matches()) {
+            throw new ApiError(400, field + " must be a non-negative decimal string with at most 6 decimals");
+        }
+        return s;
     }
 
     /** POST /debit and /credit: {player, amount, ref}; ref is audit-logged only. */

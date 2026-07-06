@@ -3,10 +3,15 @@
 // beyond localhost, no Minecraft server, in-memory DB.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 import { createApp } from '../src/index.js';
 import { createDb } from '../src/db.js';
+
+// Repo root, so the static dirs (gateway/public/{login,site}, client/dist)
+// resolve to the real in-repo files regardless of the test runner's cwd.
+const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
 const CONFIG = {
   port: 0,
@@ -19,7 +24,7 @@ const CONFIG = {
   siwsDomain: 'localhost:8080',
   siwsUri: 'http://localhost:8080/login/',
   dbPath: ':memory:',
-  root: process.cwd(),
+  root: REPO_ROOT,
 };
 
 function makeWallet() {
@@ -229,7 +234,7 @@ test('default rate limits: 11th strict request in a minute is 429', async (t) =>
   assert.equal(last.status, 429);
 });
 
-test('static plumbing: healthz, merged config.json, bare-/ redirect', async (t) => {
+test('static plumbing: healthz, merged config.json, bare-/ site vs game client', async (t) => {
   const { base } = await boot(t);
 
   const health = await fetch(`${base}/healthz`);
@@ -243,11 +248,36 @@ test('static plumbing: healthz, merged config.json, bare-/ redirect', async (t) 
   const cfg = await (await fetch(`${base}/config.json`)).json();
   assert.equal(cfg.defaultProxy, '');
   assert.equal(cfg.allowAutoConnect, true);
+  assert.equal(cfg.defaultHost, '127.0.0.1:25565');
+  assert.deepEqual(cfg.promoteServers, [
+    {
+      ip: '127.0.0.1:25565',
+      name: 'MuchuCraft',
+      description: 'Wallet-verified survival — muchucraft',
+      version: CONFIG.mcVersion, // from config, never hardcoded
+    },
+  ], 'promoteServers must replace the upstream mcraft.fun promos wholesale');
 
-  const redirect = await fetch(`${base}/`, { redirect: 'manual' });
-  assert.equal(redirect.status, 302);
-  assert.equal(redirect.headers.get('location'), '/login/');
+  // Bare / (no query) serves the marketing site — no redirect (SPEC-PHASE3 §3).
+  const bare = await fetch(`${base}/`, { redirect: 'manual' });
+  assert.equal(bare.status, 200);
+  assert.match(bare.headers.get('content-type') ?? '', /text\/html/);
+  const siteHtml = await bare.text();
+  assert.match(siteHtml, /PLAY NOW/, 'site hero must carry the PLAY NOW button');
+  assert.match(siteHtml, /href="\/login\/"/, 'PLAY NOW must point at /login/');
+  assert.match(siteHtml, /href="\/\?play=1"/, 'secondary CTA must open the game client');
 
-  const withParams = await fetch(`${base}/?ip=127.0.0.1:25565&token=x`, { redirect: 'manual' });
-  assert.notEqual(withParams.status, 302, 'play URL must not bounce back to /login/');
+  // Any client query param (incl. the site's ?play=1) falls through to the
+  // game client dist, never the site and never a /login/ bounce.
+  for (const qs of ['?play=1', '?ip=127.0.0.1:25565&token=x', '?singleplayer=1']) {
+    const res = await fetch(`${base}/${qs}`, { redirect: 'manual' });
+    assert.equal(res.status, 200, `GET /${qs} must serve the client dist`);
+    const html = await res.text();
+    assert.doesNotMatch(html, /PLAY NOW/, `GET /${qs} must not serve the site page`);
+  }
+
+  // Site assets are mounted under /site/*.
+  const css = await fetch(`${base}/site/site.css`);
+  assert.equal(css.status, 200);
+  assert.match(css.headers.get('content-type') ?? '', /text\/css/);
 });

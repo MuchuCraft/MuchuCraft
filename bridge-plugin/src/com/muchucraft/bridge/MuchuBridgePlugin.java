@@ -21,6 +21,14 @@ public final class MuchuBridgePlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        DepositInfo deposits = new DepositInfo(this);
+        deposits.load();
+        var depositCommand = getCommand("deposit");
+        if (depositCommand != null) {
+            depositCommand.setExecutor(deposits);
+        } else {
+            getLogger().warning("/deposit command missing from plugin.yml — in-game deposit info disabled.");
+        }
         int port = getConfig().getInt("port", 8091);
         String token = getConfig().getString("token", "");
         if (token == null || token.isBlank()) {
@@ -41,7 +49,7 @@ public final class MuchuBridgePlugin extends JavaPlugin {
             return t;
         });
         http.setExecutor(pool);
-        http.createContext("/", new BridgeHandler(this, token.getBytes(StandardCharsets.UTF_8)));
+        http.createContext("/", new BridgeHandler(this, token.getBytes(StandardCharsets.UTF_8), deposits));
         http.start();
         getLogger().info("Bridge listening on 127.0.0.1:" + port);
     }

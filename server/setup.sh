@@ -218,6 +218,21 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Skins (SPEC-PHASE3.md §4) — SkinsRestorer works on offline-mode servers out
+# of the box (it injects skin properties into the offline game profile). Skin
+# lookups (name skins via Mojang, URL skins via MineSkin) need OUTBOUND
+# internet from the server; no API key is required by default. Console apply
+# syntax used by the gateway: `skin set <mcname-or-url> <player>`.
+# See docs/SKINS.md.
+# ---------------------------------------------------------------------------
+
+# SkinsRestorer 15.12.4 (Modrinth version jPoqTGpe — immutable CDN URL,
+# supports MC 1.8–1.21.11, plugin.yml api-version 1.13, folia-supported).
+download_pinned skinsrestorer "SkinsRestorer.jar" \
+  "5db2d7dd96e8b0d30f2344383fe6459b0c128db691c242ada04a84e9ffb940de27c69add81223fa0550fc8dc36612469d32d46ffa56e5328a70edb343697cb68" \
+  "https://cdn.modrinth.com/data/TsLS8Py5/versions/jPoqTGpe/SkinsRestorer.jar"
+
+# ---------------------------------------------------------------------------
 # Economy plugin config pre-seeds (SPEC-TOKEN.md). server/plugins/ is
 # gitignored, so these must be (re)created here for fresh clones. Values that
 # only exist after a boot are verified via server/plugins/POST-BOOT.md.
@@ -370,3 +385,18 @@ EOF
 log "wrote server.properties (seed=${MC_SEED})"
 
 log "setup complete — start with: bash start.sh"
+
+# ---------------------------------------------------------------------------
+# POST-FIRST-BOOT (earn gate, SPEC-PHASE3 §2) — NOT run by this script.
+# After the server has booted once (LuckPerms + Jobs data generated) and while
+# it is RUNNING, bootstrap the deposit earn gate from the repo root:
+#
+#   scripts/lp-bootstrap.sh              # idempotent; STARTER_JOB=builder
+#
+# It creates the `depositor` group (weight 10, jobs.join.<job>=true for all 12
+# jobs), restricts the default group to the starter job (jobs.join.builder
+# true, every other jobs.join.<job> false), and self-verifies via `lp export`.
+# Node is `jobs.join.<job>` — verified on Jobs 5.2.6.3; `jobs.use.<job>` is NOT
+# a real node, and `jobs.use` must never be negated (payouts require it).
+# Details + verified behavior notes: docs/EARN-GATE.md
+# ---------------------------------------------------------------------------

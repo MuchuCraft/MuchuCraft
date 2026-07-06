@@ -75,11 +75,18 @@ export function createTokenRoutes({ db, ledger, bridge, worker, tokenConfig }) {
   const router = express.Router();
   router.use(express.json({ limit: '16kb' }));
 
-  // Every token route needs a valid wallet-backed session.
+  // Every token route needs a valid wallet-backed session — except that a
+  // GET /status carrying NO Bearer at all answers with a PUBLIC subset
+  // (cluster + mint only: no balances, wallets, or caps) so the landing page
+  // can render its honest "devnet beta" badge (SPEC-PHASE3 §3). A presented
+  // but invalid/expired token still 401s (the launcher relies on that).
   router.use((req, res, next) => {
     const token = bearerToken(req);
     const info = token ? db.getSessionInfo(token) : null;
     if (!info) {
+      if (!token && req.method === 'GET' && req.path === '/status') {
+        return res.json({ cluster: tokenConfig.cluster, mint: tokenConfig.mint });
+      }
       return res.status(401).json({ error: 'Missing, expired, or revoked session token.' });
     }
     req.session = info;

@@ -104,10 +104,23 @@ async function post(base, path, body, headers = {}) {
 test('all token routes require a valid session Bearer', async (t) => {
   const { base } = await boot(t);
   for (const path of ['/api/token/status', '/api/token/withdrawals']) {
-    assert.equal((await get(base, path)).status, 401, `${path} without token`);
-    assert.equal((await get(base, path, { authorization: 'Bearer nope' })).status, 401);
+    assert.equal((await get(base, path, { authorization: 'Bearer nope' })).status, 401, `${path} bad token`);
   }
+  assert.equal((await get(base, '/api/token/withdrawals')).status, 401, 'withdrawals without token');
   assert.equal((await post(base, '/api/token/withdraw', { amount: '25' })).status, 401);
+});
+
+test('GET /status with NO Bearer is the PUBLIC subset (landing-page badge): cluster + mint only', async (t) => {
+  const { base } = await boot(t);
+  const { status, body } = await get(base, '/api/token/status');
+  assert.equal(status, 200);
+  assert.equal(body.cluster, 'devnet');
+  assert.equal(typeof body.mint, 'string');
+  // nothing session-scoped may leak on the unauthenticated path
+  assert.equal(body.balance, undefined);
+  assert.equal(body.boundWallet, undefined);
+  assert.equal(body.caps, undefined);
+  assert.equal(body.deposit, undefined);
 });
 
 test('createApp WITHOUT tokenRoutes: /api/token 404s (unconfigured = not mounted)', async (t) => {

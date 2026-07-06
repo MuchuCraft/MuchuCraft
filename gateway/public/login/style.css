@@ -429,6 +429,73 @@ body {
 .footer-dot-purple { background: var(--sol-purple); }
 .footer-dot-green  { background: var(--sol-green); }
 
+/* ---------------------------------------------------------------- skin picker */
+
+.skin-box {
+  margin: 18px 0 14px;
+  padding: 16px 16px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-2);
+  text-align: left;
+}
+
+#skin-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0d0d15;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+#skin-input::placeholder { color: #55536a; font-weight: 400; }
+#skin-input:focus {
+  border-color: var(--sol-purple);
+  box-shadow: 0 0 0 3px rgba(153, 69, 255, 0.25);
+}
+
+.skin-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.skin-preset {
+  flex: none;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #0d0d15;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.skin-preset:hover { border-color: var(--sol-green); color: var(--sol-green); }
+
+.skin-preset-purple {
+  border-color: rgba(153, 69, 255, 0.55);
+  color: var(--sol-purple);
+}
+.skin-preset-purple:hover { border-color: var(--sol-purple); color: var(--sol-purple); }
+
+.btn-skin-save {
+  display: inline-block;
+  width: auto;
+  margin: 2px 0 0;
+  padding: 10px 18px;
+}
+
+.skin-note { margin: 4px 0 0; }
+
 /* ---------------------------------------------------------------- wallet card */
 
 .wallet-card {

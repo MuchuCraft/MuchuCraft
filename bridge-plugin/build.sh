@@ -59,6 +59,8 @@ TRANSITIVE=(
   "net/kyori/examination-api/1.3.0/examination-api-1.3.0.jar"
   "org/jetbrains/annotations/26.0.2/annotations-26.0.2.jar"
   "org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar"
+  # sendMessage overload resolution needs the (deprecated) bungee chat types loadable
+  "net/md-5/bungeecord-chat/1.20-R0.2/bungeecord-chat-1.20-R0.2.jar"
 )
 CP="$PAPER_JAR:$VAULT_JAR"
 for path in "${TRANSITIVE[@]}"; do

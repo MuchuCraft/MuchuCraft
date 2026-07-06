@@ -1,11 +1,45 @@
-// auth-routes.js — /api/auth router: nonce, verify, session, username lookup.
+// auth-routes.js — /api/auth router: nonce, verify, session, username lookup,
+// skin (SPEC-PHASE3.md §4).
 import express from 'express';
 import { randomBytes } from 'node:crypto';
 import bs58 from 'bs58';
 import { buildMessage, verifySiws } from './siws.js';
+import { createRcon } from './rcon.js';
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const NONCE_TTL_MS = 5 * 60 * 1000;
+
+const SKIN_MAX_LEN = 300;
+const SKIN_NAME_RE = /^name:[A-Za-z0-9_]{3,16}$/;
+const SKIN_ERROR =
+  'Skin must be "name:<minecraft username>" or "url:<https url ending in .png>" (at most 300 characters).';
+
+/**
+ * Validate a skin descriptor (SPEC-PHASE3.md §4):
+ *   "name:<mcname>"   — 3-16 chars of [A-Za-z0-9_]
+ *   "url:<https url>" — https only, ending in .png, ≤300 chars total
+ * The value is later interpolated into a space-delimited RCON console command
+ * (`skin set <value> <player>` — see rcon.js buildSkinCommand), so whitespace
+ * and non-printable characters are rejected outright.
+ * @returns {string|null} the trimmed valid value, or null.
+ */
+export function validateSkin(value) {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (v.length === 0 || v.length > SKIN_MAX_LEN) return null;
+  if (SKIN_NAME_RE.test(v)) return v;
+  if (!v.startsWith('url:')) return null;
+  const raw = v.slice('url:'.length);
+  if (!/^[\x21-\x7e]+$/.test(raw)) return null; // printable ASCII, no spaces
+  if (!raw.toLowerCase().endsWith('.png')) return null;
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  return url.protocol === 'https:' ? v : null;
+}
 
 /** Tiny in-memory fixed-window rate limiter (per IP, per minute). */
 function fixedWindow(limit, windowMs = 60_000) {
@@ -43,12 +77,19 @@ function isValidAddress(address) {
 }
 
 /**
- * @param {{config: object, db: object, limits?: {strict?: number, relaxed?: number}}} deps
+ * @param {{config: object, db: object, limits?: {strict?: number, relaxed?: number}, rcon?: {applySkin(username: string, skin: string): void}}} deps
+ * `rcon` is an injection point for tests; production callers omit it and get
+ * the best-effort default (lazy connect, never throws — see rcon.js).
  * @returns {import('express').Router}
  */
-export function createAuthRoutes({ config, db, limits = {} }) {
+export function createAuthRoutes({ config, db, limits = {}, rcon = null }) {
   const router = express.Router();
   router.use(express.json({ limit: '64kb' }));
+
+  // Used by POST /skin to apply a new skin immediately when the player is
+  // already online (the join-time apply in netproxy.js covers everyone else).
+  const skinRcon =
+    rcon ?? createRcon({ host: '127.0.0.1', port: config.rconPort, password: config.rconPassword });
 
   // 10/min shared across nonce+verify; 60/min for the rest (per SPEC).
   const strictLimit = fixedWindow(limits.strict ?? 10);
@@ -115,14 +156,44 @@ export function createAuthRoutes({ config, db, limits = {} }) {
     res.json({ token, username: user.username, address, expiresAt, playUrl });
   });
 
-  // GET /session (Bearer) -> {username, address, expiresAt} | 401
+  // GET /session (Bearer) -> {username, address, expiresAt, skin} | 401
   router.get('/session', relaxedLimit, (req, res) => {
     const token = bearerToken(req);
     const info = token ? db.getSessionInfo(token) : null;
     if (!info) {
       return res.status(401).json({ error: 'Missing, expired, or revoked session token.' });
     }
-    res.json({ username: info.username, address: info.address, expiresAt: info.expiresAt });
+    res.json({
+      username: info.username,
+      address: info.address,
+      expiresAt: info.expiresAt,
+      skin: info.skin ?? null,
+    });
+  });
+
+  // POST /skin (Bearer) {skin: "name:<mcname>" | "url:<https .png>" | null}
+  // -> {skin}. null (or "") clears the stored skin. On success the skin is
+  // applied on every future join; if the player is online right now the RCON
+  // command applies it immediately (best-effort).
+  router.post('/skin', relaxedLimit, (req, res) => {
+    const token = bearerToken(req);
+    const info = token ? db.getSessionInfo(token) : null;
+    if (!info) {
+      return res.status(401).json({ error: 'Missing, expired, or revoked session token.' });
+    }
+    const { skin } = req.body ?? {};
+    if (skin === null || skin === '') {
+      db.setUserSkin(info.userId, null);
+      return res.json({ skin: null });
+    }
+    const valid = validateSkin(skin);
+    if (!valid) {
+      return res.status(400).json({ error: SKIN_ERROR });
+    }
+    db.setUserSkin(info.userId, valid);
+    console.log(`[auth] skin set for ${info.username}: ${valid}`);
+    skinRcon.applySkin?.(info.username, valid); // fire-and-forget, never throws
+    res.json({ skin: valid });
   });
 
   // GET /username/:name -> {status: available|taken|yours, registered}

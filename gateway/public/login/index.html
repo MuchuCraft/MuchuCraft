@@ -31,6 +31,22 @@
       <p class="continue-label">Welcome back — continue as</p>
       <p class="continue-name" id="session-name"></p>
       <button id="btn-play" type="button" class="btn btn-primary">Play</button>
+
+      <!-- Skin picker (SPEC-PHASE3 §4): Minecraft username or https PNG URL -->
+      <div class="skin-box" aria-label="Skin">
+        <label class="field-label" for="skin-input">Skin</label>
+        <input id="skin-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+               maxlength="300" placeholder="Minecraft username or https PNG URL">
+        <div class="skin-presets" role="group" aria-label="Skin presets">
+          <button type="button" class="skin-preset" data-skin="name:MHF_Steve">Steve</button>
+          <button type="button" class="skin-preset" data-skin="name:MHF_Alex">Alex</button>
+          <button type="button" class="skin-preset skin-preset-purple" data-skin="name:MHF_Enderman">Ender purple</button>
+        </div>
+        <button id="btn-skin-save" type="button" class="btn btn-secondary btn-skin-save">Save skin</button>
+        <p id="skin-status" class="status" aria-live="polite"></p>
+        <p class="muted small skin-note">Applies when you join.</p>
+      </div>
+
       <button id="btn-logout" type="button" class="btn btn-ghost">Use a different wallet</button>
     </section>
 
