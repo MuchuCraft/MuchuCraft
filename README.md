@@ -21,9 +21,23 @@ you chose is cryptographically bound to your wallet — forever yours, no passwo
 or forget. Then the browser client drops you straight into a real Minecraft world.
 
 Under the hood this is **not** a Minecraft clone: it is a real **Paper 1.21.11** server
-running real plugins (EssentialsX, LuckPerms, WorldEdit, ViaVersion, Chunky, Vault),
-reached through the MIT-licensed [minecraft-web-client](https://github.com/zardoy/minecraft-web-client)
-(the client behind mcraft.fun), which runs the actual Minecraft protocol in your browser.
+running 15 real plugins (EssentialsX, LuckPerms, WorldEdit, WorldGuard, GriefPrevention,
+Jobs Reborn, SkinsRestorer, shops, cosmetics…), reached through the MIT-licensed
+[minecraft-web-client](https://github.com/zardoy/minecraft-web-client) (the client behind
+mcraft.fun), which runs the actual Minecraft protocol in your browser.
+
+And the economy is real too: the in-game currency **is the MUCHU SPL token, 1:1**. Earn
+it through Jobs, quests, and events; `/deposit` tokens into the game from your bound
+wallet; withdraw your balance on-chain from the wallet page. A custom zero-dependency
+Paper plugin (MuchuBridge) bridges the Vault economy to the gateway, a double-entry
+ledger with a solvency monitor keeps every in-game coin backed by treasury tokens, and
+deposit-gated earning tiers keep bot farms unprofitable. Ships pointed at **devnet**;
+mainnet is a config swap (see `docs/MAINNET-CUTOVER.md`).
+
+Players spawn at **The Amethyst Compass** — a scripted purpur-and-amethyst plaza in a
+snowy cherry grove, WorldGuard-protected from griefing (build/PvP/creepers/mob-spawns
+all denied, proven by automated grief tests) — then head into a pregenerated 6000-block
+world to claim land with GriefPrevention, set homes, join jobs, and play.
 
 ## Quick start
 
@@ -37,8 +51,10 @@ cp .env.example .env          # then set RCON_PASSWORD to a long random string
 ./start-all.sh                # downloads Paper + plugins + web client on first run
 ```
 
-Open **http://localhost:8090/login/**, connect your wallet, claim a username, and play.
-Stop everything with `./stop-all.sh`. To host publicly, put the gateway behind TLS
+Open **http://localhost:8090/** for the landing page — PLAY NOW takes you through
+wallet connect → username claim → straight into the world. Stop with `./stop-all.sh`.
+For the token economy on devnet, run `cd gateway && node scripts/devnet-setup.mjs` once
+(creates the test mint + treasury), then restart the gateway. To host publicly, put the gateway behind TLS
 (wallet extensions require a secure context) and set `SIWS_DOMAIN`/`SIWS_URI` to your
 real domain — see [Configuration](#configuration).
 
@@ -89,23 +105,31 @@ proxy-shutdown:username does not match your wallet session
 | `gateway/public/login/` | Wallet launcher page (vanilla JS, Wallet Standard + legacy providers) |
 | `server/` | Paper server: `setup.sh` downloads jar (sha256-verified) + plugins, boots & pregenerates |
 | `client/` | Web client bundle (downloaded by `setup.sh`; `NOTES.md` documents the wire protocol) |
-| `e2e/` | Live end-to-end suite: fake wallet + mineflayer bot through the real proxy |
-| `docs/P2E-PLAN.md` | Play-to-earn research & phased MUCHU token plan |
-| `SPEC.md` | The full architecture contract the system was built against |
+| `gateway/src/token/` | 1:1 MUCHU economy: double-entry ledger, withdrawal worker, deposit watcher, solvency monitor |
+| `bridge-plugin/` | MuchuBridge Paper plugin (Java, zero deps): Vault↔gateway HTTP bridge + `/deposit` command |
+| `gateway/public/site/` | The landing website served at `/` |
+| `scripts/` | Reproducible world/ops scripts: spawn builder, WorldGuard protection, LuckPerms bootstraps |
+| `e2e/` | Live end-to-end suites: fake wallet + mineflayer bots through the real proxy (36 cases) |
+| `docs/` | P2E research & plan, mainnet cutover runbook, earn gate, skins, player guide, spawn/protection docs |
+| `SPEC*.md` | The architecture contracts each build phase was implemented against |
 
 ## Testing
 
 ```bash
-cd gateway && npm test        # 67 unit tests: SIWS crypto, DB, auth routes, sniffer, proxy
+cd gateway && npm test        # 169 unit tests: SIWS crypto, DB, ledger, proxy, sniffer, deposits, skins
 ./start-all.sh
-cd e2e && npm install && npm test   # 6 live cases against the running stack
+cd e2e && npm install
+node run-e2e.js               # 6 cases: auth, bot spawn, impostor kill, replay/409/403
+node run-token-e2e.js         # 8 cases: real devnet withdrawal, caps, on-chain deltas
+node run-deposit-e2e.js       # 6 cases: real devnet deposit, credit, earn-gate flip, dust
+node run-phase4-proof.js      # 16 cases: grief protection, /home, kit, region flags, mobs
 ```
 
-The e2e suite proves the whole pipeline with no browser: it generates a real ed25519
-keypair, signs the real SIWS message, gets a session, then connects a **mineflayer bot
-through the actual WebSocket proxy** and waits for the in-world spawn event — plus four
-adversarial cases (no token → 403, impostor username → killed, second wallet claiming a
-taken name → 409, replayed nonce → 400). All six pass.
+The e2e suites prove the whole pipeline with no browser: real ed25519 keypairs sign real
+SIWS messages, **mineflayer bots connect through the actual WebSocket proxy** as ordinary
+players, tokens actually move on devnet (withdrawals and deposits verified by exact
+on-chain balance deltas), and a non-op bot literally attempts to grief spawn and gets
+refused by WorldGuard. All 36 cases pass.
 
 ## Configuration
 
@@ -122,13 +146,22 @@ All knobs live in `.env` (see `.env.example`):
 | `DB_PATH` | SQLite location (wallet↔username bindings live here — back it up) |
 | `MC_SEED` | World seed (default: a snowy-mountain cherry-grove village at spawn) |
 
-## MUCHU & play-to-earn
+## The MUCHU economy (1:1, live on devnet)
 
-The economy roadmap — an earnable MUCHU currency, seasonal on-chain settlement, and the
-research behind it (including the honest risks: Mojang's blockchain policy for Minecraft
-servers, and why most P2E economies collapsed) — lives in
-[`docs/P2E-PLAN.md`](docs/P2E-PLAN.md). Short version: points first, token later, fixed
-seasonal pools, and all blockchain code kept strictly outside the game server.
+In-game money **is** the MUCHU token: earn up to 100/day through Jobs (everyone starts
+with the Builder job; depositing 25+ MUCHU unlocks all 12), spend it in shops, land
+claims and cosmetics, `/deposit` from your bound wallet (credited automatically by
+source-address matching — no memos), and withdraw 1:1 to your wallet from the launcher.
+Guardrails are first-class: per-user/global daily withdrawal caps, single in-flight
+withdrawal, payouts only to the wallet that owns the username, a solvency monitor that
+pauses withdrawals if treasury tokens ever fall below outstanding in-game balances, and
+a kill switch. The mainnet runbook is [`docs/MAINNET-CUTOVER.md`](docs/MAINNET-CUTOVER.md).
+
+The research behind the design — and the honest risks: Mojang's blockchain policy for
+Minecraft servers (which killed NFT Worlds and Critterz), why most P2E economies
+collapsed, and the regulatory picture — lives in [`docs/P2E-PLAN.md`](docs/P2E-PLAN.md).
+Read it before pointing this at mainnet. All blockchain code stays strictly outside the
+game server: the Paper plugin only speaks localhost HTTP to the gateway.
 
 ## Credits & legal
 

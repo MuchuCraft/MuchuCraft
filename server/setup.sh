@@ -384,6 +384,21 @@ max-players=50
 EOF
 log "wrote server.properties (seed=${MC_SEED})"
 
+# ---------------------------------------------------------------------------
+# Modular setup parts (server/setup.d/*.sh) — Phase 4+ agents drop their
+# idempotent setup here instead of editing this file. Each part is sourced in
+# a SUBSHELL so its `cd`/log()/die() stay contained; a part's failure (die →
+# exit 1) still aborts this script via set -e. Parts run in lexical order.
+# ---------------------------------------------------------------------------
+if [ -d "$SCRIPT_DIR/setup.d" ]; then
+  for part in "$SCRIPT_DIR"/setup.d/*.sh; do
+    [ -e "$part" ] || continue
+    log "running setup part: ${part#"$SCRIPT_DIR"/}"
+    # shellcheck disable=SC1090
+    ( source "$part" )
+  done
+fi
+
 log "setup complete — start with: bash start.sh"
 
 # ---------------------------------------------------------------------------
