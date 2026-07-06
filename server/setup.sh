@@ -129,7 +129,6 @@ download_modrinth() {
 download_modrinth essentialsx 'EssentialsX-*.jar'
 download_modrinth luckperms  'LuckPerms-Bukkit-*.jar'
 download_modrinth worldedit  'worldedit-bukkit-*.jar'
-download_modrinth viaversion 'ViaVersion-*.jar'
 download_modrinth chunky     'Chunky-Bukkit-*.jar'
 
 # Vault 1.7.3 (not on Modrinth) — GitHub release asset, follow redirects.
@@ -181,6 +180,13 @@ download_pinned jobs "Jobs5.2.6.3.jar" \
 
 # GriefPrevention 16.18.7 (Modrinth version dGfCZHqk — immutable CDN URL,
 # supports MC 1.21.10/1.21.11, api-version 1.21.10).
+# ViaVersion: pinned SNAPSHOT matching ViaBackwards below (the 5.10.0 release
+# lacks EntityRewriter.fallingBlockType(), which ViaBackwards 5.10.1 needs —
+# mismatched pairs kick sub-1.21.8 clients on join).
+download_pinned viaversion "ViaVersion.jar" \
+  "da25659cb4a39a34364a8f0510896b316696f614128b1f40e928fbfa34e3e8927566fcfdb10278b963e16b4da41d5b2da14ea9fda9fec8dd33fb5569c3601d44" \
+  "https://cdn.modrinth.com/data/P1OZGk5p/versions/nSqRQTXh/ViaVersion-5.10.1-SNAPSHOT.jar"
+
 # ViaBackwards (companion to ViaVersion): lets OLDER-version clients join this
 # newer server — required because the bundled web client renders at most 1.21.8
 # (its mesher lacks 1.21.11 data); clients connect as CLIENT_MC_VERSION.

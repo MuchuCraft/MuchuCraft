@@ -37,7 +37,7 @@ Object.assign(cfg, {
     ip: 'web.muchu.app:25565',
     name: 'MuchuCraft',
     description: 'Wallet-verified survival — muchucraft',
-    version: '1.21.8',
+    version: '1.21.4',
   }],
   pauseLinks: [[
     { type: 'url', url: 'https://github.com/MuchuCraft/MuchuCraft', text: 'GitHub' },
