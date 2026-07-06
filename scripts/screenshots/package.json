@@ -1,0 +1,17 @@
+{
+  "name": "muchucraft-screenshots",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless-Chromium README screenshot capture for MuchuCraft",
+  "scripts": {
+    "capture": "node capture.mjs"
+  },
+  "dependencies": {
+    "bs58": "^6.0.0",
+    "pngjs": "^7.0.0",
+    "puppeteer": "^24.0.0",
+    "sharp": "^0.34.0",
+    "tweetnacl": "^1.0.3"
+  }
+}

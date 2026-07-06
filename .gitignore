@@ -43,3 +43,4 @@ e2e/.e2e-wallet.json
 server/logs-boot.out
 server/logs-run.out
 e2e/.*-wallet.json
+scripts/screenshots/.screenshot-wallet.json

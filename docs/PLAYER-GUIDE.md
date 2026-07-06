@@ -6,7 +6,8 @@ everything you earn in-game is **MUCHU** — a real token you can cash out.
 
 ## 1. Your wallet is your identity
 
-- You joined by connecting a Solana wallet on the MuchuCraft website and
+- You joined by connecting a Solana wallet on the MuchuCraft website
+  (<https://web.muchu.app>) and
   signing a message. That signature — not a password — proves you own your
   username. Nobody can log in as you without your wallet.
 - One wallet = one username, permanently bound on first join.
@@ -42,7 +43,8 @@ everything you earn in-game is **MUCHU** — a real token you can cash out.
 
 - `/deposit` (in game) shows the deposit address for your bound wallet — send
   MUCHU there and it lands on your in-game balance after confirmation.
-- **Withdraw on the website** (the page where you connected your wallet):
+- **Withdraw on the website** (<https://web.muchu.app> — the site where you
+  connected your wallet):
   enter an amount and it is sent on-chain to your bound wallet. Minimums and
   daily caps are shown on the withdraw form.
 - Depositor status is cumulative and never taken away.
@@ -97,7 +99,7 @@ everything you earn in-game is **MUCHU** — a real token you can cash out.
 | `/rules`, `/motd`, `/help`, `/afk` | Info & status |
 | golden shovel, `/trust`, `/abandonclaim`, `/claimslist` | Land claims |
 
-*Withdrawals live on the website, not in a command.*
+*Withdrawals live on the website (<https://web.muchu.app>), not in a command.*
 
 ---
 
