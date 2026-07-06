@@ -1,0 +1,8 @@
+name: MuchuBridge
+version: 1.0.0
+main: com.muchucraft.bridge.MuchuBridgePlugin
+api-version: '1.21'
+depend: [Vault]
+softdepend: [Essentials]
+description: Localhost HTTP bridge exposing the Vault economy to the MuchuCraft gateway.
+author: MuchuCraft

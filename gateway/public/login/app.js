@@ -471,6 +471,437 @@
   }
 
   /* ---------------------------------------------------------------- *
+   * Wallet card — MUCHU token economy (SPEC-TOKEN.md "Wallet UI")     *
+   * Shown only when a session is active AND /api/token/status is 200. *
+   * 404/501 mean the token economy is not configured: keep it hidden. *
+   * Amount math uses BigInt raw units (10^decimals) — never floats.   *
+   * ---------------------------------------------------------------- */
+
+  const TERMINAL_STATES = ['confirmed', 'failed', 'refunded'];
+  const WITHDRAW_POLL_MS = 3000;
+
+  const tokenState = {
+    token: null,      // session token for Authorization
+    status: null,     // last GET /api/token/status payload
+    decimals: 6,      // MUCHU_DECIMALS default; overridden by status when present
+    cluster: 'devnet',
+    pollTimer: 0,
+    watchId: null,    // withdrawal id we are waiting on
+    submitting: false,
+  };
+
+  function tokenHeaders(extra) {
+    const headers = { Authorization: `Bearer ${tokenState.token}` };
+    return extra ? Object.assign(headers, extra) : headers;
+  }
+
+  /** First present (non-null/undefined) property among candidate key spellings. */
+  function firstDefined(obj, keys) {
+    if (!obj || typeof obj !== 'object') return undefined;
+    for (const key of keys) {
+      if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+    }
+    return undefined;
+  }
+
+  /** Decimal string -> BigInt raw units. null when malformed or too many dp. */
+  function toRaw(value, decimals) {
+    const match = /^(\d+)(?:\.(\d+))?$/.exec(String(value === undefined || value === null ? '' : value).trim());
+    if (!match) return null;
+    const frac = match[2] || '';
+    if (frac.length > decimals) return null;
+    const padded = frac.length < decimals ? frac + '0'.repeat(decimals - frac.length) : frac;
+    return BigInt(match[1]) * (10n ** BigInt(decimals)) + BigInt(padded || '0');
+  }
+
+  /** BigInt raw units -> decimal string without trailing zeros. */
+  function formatRaw(raw, decimals) {
+    const base = 10n ** BigInt(decimals);
+    const whole = (raw / base).toString();
+    const frac = (raw % base).toString().padStart(decimals, '0').replace(/0+$/, '');
+    return frac ? `${whole}.${frac}` : whole;
+  }
+
+  /** Normalize a decimal-string amount for display (strip trailing zeros). */
+  function formatAmount(value) {
+    const raw = toRaw(value, tokenState.decimals);
+    return raw === null ? String(value) : formatRaw(raw, tokenState.decimals);
+  }
+
+  /** Cluster-aware Solana explorer link for a transaction signature. */
+  function explorerTxUrl(signature) {
+    const base = `https://explorer.solana.com/tx/${encodeURIComponent(signature)}`;
+    const cluster = tokenState.cluster || 'devnet';
+    if (/^mainnet/i.test(cluster)) return base; // mainnet(-beta): no cluster param
+    return `${base}?cluster=${encodeURIComponent(cluster)}`;
+  }
+
+  /** status.withdrawable may be a bool (+ sibling reason) or {ok, reason}. */
+  function parseWithdrawable(status) {
+    const w = status ? status.withdrawable : undefined;
+    if (w && typeof w === 'object') {
+      const ok = firstDefined(w, ['ok', 'withdrawable', 'value', 'enabled']);
+      return { ok: !!ok, reason: String(w.reason || '') };
+    }
+    const reason = firstDefined(status || {}, ['reason', 'withdrawableReason', 'withdrawable_reason', 'pausedReason']);
+    return { ok: !!w, reason: String(reason || '') };
+  }
+
+  function setWithdrawStatus(text, kind, link) {
+    const el = $('withdraw-status');
+    el.textContent = text || '';
+    el.className = 'status' + (kind ? ` status-${kind}` : '');
+    if (link && link.href) {
+      el.appendChild(document.createTextNode(' '));
+      const a = document.createElement('a');
+      a.href = link.href;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = link.label || 'View on Solana Explorer ↗';
+      el.appendChild(a);
+    }
+  }
+
+  function showWithdrawError(message) {
+    const box = $('withdraw-error');
+    box.textContent = message;
+    show(box);
+    setWithdrawStatus('', '');
+  }
+
+  function updateWithdrawButton() {
+    const withdrawable = parseWithdrawable(tokenState.status);
+    $('btn-withdraw').disabled = tokenState.submitting || !withdrawable.ok;
+  }
+
+  function renderWalletStatus(status) {
+    tokenState.status = status;
+    const decimals = Number(firstDefined(status, ['decimals', 'mintDecimals']));
+    if (Number.isInteger(decimals) && decimals >= 0 && decimals <= 12) tokenState.decimals = decimals;
+    if (status.cluster) tokenState.cluster = String(status.cluster);
+
+    const balance = firstDefined(status, ['balance', 'ingameBalance']) || '0';
+    $('wallet-balance').textContent = `${formatAmount(balance)} MUCHU`;
+
+    const boundWallet = String(firstDefined(status, ['boundWallet', 'bound_wallet', 'wallet']) || '');
+    const boundEl = $('wallet-bound');
+    boundEl.textContent = shortAddress(boundWallet);
+    boundEl.title = boundWallet;
+
+    const clusterEl = $('wallet-cluster');
+    clusterEl.textContent = tokenState.cluster;
+    show(clusterEl);
+
+    // Paused / treasury notice
+    const withdrawable = parseWithdrawable(status);
+    const treasuryOk = !(status.treasury && status.treasury.ok === false);
+    const paused = $('wallet-paused');
+    if (!withdrawable.ok || !treasuryOk) {
+      paused.textContent = withdrawable.reason
+        ? `Withdrawals are paused — ${withdrawable.reason}`
+        : !treasuryOk
+          ? 'Withdrawals are paused — the treasury is temporarily unavailable. Your in-game balance is safe.'
+          : 'Withdrawals are currently paused. Your in-game balance is safe — try again later.';
+      show(paused);
+    } else {
+      hide(paused);
+    }
+    updateWithdrawButton();
+
+    // Min / max / caps hints
+    const caps = status.caps || {};
+    const min = firstDefined(caps, ['min', 'withdrawMin', 'perTxMin', 'minPerTx']);
+    const max = firstDefined(caps, ['max', 'maxPerTx', 'perTxMax', 'withdrawMax']);
+    const daily = firstDefined(caps, ['dailyPerUser', 'perUserDaily', 'userDailyCap', 'dailyCapPerUser']);
+    const remaining = firstDefined(caps, ['userDailyRemaining', 'remainingToday', 'userRemainingToday', 'dailyRemaining']);
+    const parts = [];
+    if (min !== undefined) parts.push(`min ${formatAmount(min)}`);
+    if (max !== undefined) parts.push(`max ${formatAmount(max)} per withdrawal`);
+    if (daily !== undefined) parts.push(`daily limit ${formatAmount(daily)}`);
+    if (remaining !== undefined) parts.push(`${formatAmount(remaining)} left today`);
+    $('withdraw-hints').textContent = parts.length ? `MUCHU · ${parts.join(' · ')}` : '';
+  }
+
+  async function refreshWalletStatus() {
+    if (!tokenState.token) return;
+    try {
+      renderWalletStatus(await api('/api/token/status', { headers: tokenHeaders() }));
+    } catch { /* transient — keep last rendered state */ }
+  }
+
+  /* ----- withdrawals list ----- */
+
+  async function fetchWithdrawals() {
+    const data = await api('/api/token/withdrawals', { headers: tokenHeaders() });
+    const list = Array.isArray(data) ? data : firstDefined(data, ['withdrawals', 'items', 'rows']);
+    return Array.isArray(list) ? list : [];
+  }
+
+  function rowAmountText(row) {
+    const amount = firstDefined(row, ['amount', 'amountDecimal']);
+    if (amount !== undefined) return formatAmount(amount);
+    const raw = firstDefined(row, ['amountRaw', 'amount_raw', 'rawAmount']);
+    if (raw !== undefined) {
+      try { return formatRaw(BigInt(raw), tokenState.decimals); } catch { /* fall through */ }
+    }
+    return '?';
+  }
+
+  function rowTimeText(row) {
+    const value = firstDefined(row, ['createdAt', 'created_at', 'updatedAt', 'updated_at']);
+    if (value === undefined) return '';
+    let ms = value;
+    if (typeof value === 'string' && /^\d+$/.test(value)) ms = Number(value);
+    if (typeof ms === 'number' && ms < 1e12) ms *= 1000; // epoch seconds -> ms
+    const date = new Date(ms);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderWithdrawals(rows) {
+    const history = $('withdraw-history');
+    const list = $('withdrawal-list');
+    list.textContent = '';
+    if (!rows.length) {
+      hide(history);
+      return;
+    }
+    for (const row of rows.slice(0, 8)) {
+      const item = document.createElement('li');
+      item.className = 'wd-item';
+
+      const top = document.createElement('div');
+      top.className = 'wd-row';
+      const amount = document.createElement('span');
+      amount.className = 'wd-amount';
+      amount.textContent = `${rowAmountText(row)} MUCHU`;
+      top.appendChild(amount);
+      const state = document.createElement('span');
+      const stateName = String(row.state || 'pending');
+      state.className = 'wd-state ' + (TERMINAL_STATES.includes(stateName) ? `wd-state-${stateName}` : 'wd-state-pending');
+      state.textContent = stateName;
+      top.appendChild(state);
+      item.appendChild(top);
+
+      const meta = document.createElement('div');
+      meta.className = 'wd-meta';
+      const time = document.createElement('span');
+      time.textContent = rowTimeText(row);
+      meta.appendChild(time);
+      if (row.signature) {
+        const link = document.createElement('a');
+        link.className = 'wd-link';
+        link.href = explorerTxUrl(String(row.signature));
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Explorer ↗';
+        meta.appendChild(link);
+      }
+      item.appendChild(meta);
+
+      if (row.error && stateName !== 'confirmed') {
+        const errLine = document.createElement('p');
+        errLine.className = 'wd-error';
+        errLine.textContent = String(row.error);
+        item.appendChild(errLine);
+      }
+      list.appendChild(item);
+    }
+    show(history);
+  }
+
+  /* ----- polling until the watched withdrawal reaches a terminal state ----- */
+
+  function stopWithdrawalPolling() {
+    clearInterval(tokenState.pollTimer);
+    tokenState.pollTimer = 0;
+  }
+
+  function startWithdrawalPolling() {
+    stopWithdrawalPolling();
+    tokenState.pollTimer = setInterval(pollWithdrawals, WITHDRAW_POLL_MS);
+    pollWithdrawals();
+  }
+
+  const PENDING_STATE_LABELS = {
+    requested: 'Queued — waiting for the withdrawal worker…',
+    debited: 'In-game balance debited — preparing the on-chain transfer…',
+    signed: 'Transaction signed — sending to Solana…',
+    submitted: 'Transaction submitted — waiting for confirmation…',
+  };
+
+  async function pollWithdrawals() {
+    if (!tokenState.token) {
+      stopWithdrawalPolling();
+      return;
+    }
+    let rows;
+    try {
+      rows = await fetchWithdrawals();
+    } catch {
+      return; // transient failure — keep polling
+    }
+    renderWithdrawals(rows);
+
+    if (tokenState.watchId !== null) {
+      const watched = rows.find((row) => String(row.id) === String(tokenState.watchId));
+      if (watched) {
+        const stateName = String(watched.state || '');
+        if (TERMINAL_STATES.includes(stateName)) {
+          tokenState.watchId = null;
+          finishWatchedWithdrawal(watched, stateName);
+          refreshWalletStatus(); // balance changed (or was refunded)
+        } else {
+          setWithdrawStatus(PENDING_STATE_LABELS[stateName] || `Processing (${stateName})…`, 'pending');
+        }
+      }
+      // Row not visible yet (list may lag the 202): keep polling.
+    }
+
+    const anyPending = rows.some((row) => row && row.state && !TERMINAL_STATES.includes(String(row.state)));
+    if (tokenState.watchId === null && !anyPending) stopWithdrawalPolling();
+  }
+
+  function finishWatchedWithdrawal(row, stateName) {
+    const link = row.signature ? { href: explorerTxUrl(String(row.signature)), label: 'View on Solana Explorer ↗' } : null;
+    if (stateName === 'confirmed') {
+      setWithdrawStatus(`Withdrawal confirmed ✓ ${rowAmountText(row)} MUCHU sent to your wallet.`, 'good', link);
+      hide($('withdraw-error'));
+    } else if (stateName === 'refunded') {
+      setWithdrawStatus('', '');
+      showWithdrawError(
+        'The on-chain transfer failed, so your MUCHU was refunded to your in-game balance. Nothing was lost — try again later.'
+        + (row.error ? ` (${row.error})` : ''),
+      );
+    } else { // failed
+      setWithdrawStatus('', '');
+      showWithdrawError(
+        'The withdrawal failed. If your in-game balance was debited it will be refunded shortly.'
+        + (row.error ? ` (${row.error})` : ''),
+      );
+    }
+  }
+
+  /* ----- submit ----- */
+
+  /** Friendly copy for withdraw errors; prefers the gateway's own message. */
+  function withdrawErrorCopy(err) {
+    const generic = !err || err.network || !err.message
+      || /^Request failed \(HTTP \d+\)\.$/.test(err.message)
+      || /^Too many requests/.test(err.message);
+    const serverMessage = generic ? '' : err.message;
+    switch (err && err.status) {
+      case 400: return serverMessage || 'That amount is not valid — check the minimum, maximum and decimal places.';
+      case 409: return serverMessage || 'Withdrawal rejected — your balance may be too low, or another withdrawal is still in flight. Wait for it to finish and try again.';
+      case 429: return serverMessage || 'Daily withdrawal limit reached — try again tomorrow.';
+      case 503: return serverMessage || 'Withdrawals are paused right now. Your in-game balance is safe — try again later.';
+      case 401:
+      case 403: return 'Your session expired — refresh the page and sign in again.';
+      default:
+        if (err && err.network) return err.message;
+        return serverMessage || 'Something went wrong submitting the withdrawal — please try again.';
+    }
+  }
+
+  async function onWithdrawSubmit(event) {
+    event.preventDefault();
+    if (tokenState.submitting || !tokenState.token) return;
+    hide($('withdraw-error'));
+
+    const input = $('withdraw-amount');
+    const amount = input.value.trim();
+    const raw = toRaw(amount, tokenState.decimals);
+    if (raw === null || raw <= 0n) {
+      showWithdrawError(`Enter a positive amount with at most ${tokenState.decimals} decimal places — for example 25 or 12.5.`);
+      return;
+    }
+
+    // Advisory pre-checks from the last /status (the gateway is authoritative).
+    const status = tokenState.status || {};
+    const caps = status.caps || {};
+    const minRaw = toRaw(firstDefined(caps, ['min', 'withdrawMin', 'perTxMin', 'minPerTx']), tokenState.decimals);
+    const maxRaw = toRaw(firstDefined(caps, ['max', 'maxPerTx', 'perTxMax', 'withdrawMax']), tokenState.decimals);
+    const balanceRaw = toRaw(firstDefined(status, ['balance', 'ingameBalance']), tokenState.decimals);
+    if (minRaw !== null && raw < minRaw) {
+      showWithdrawError(`The minimum withdrawal is ${formatRaw(minRaw, tokenState.decimals)} MUCHU.`);
+      return;
+    }
+    if (maxRaw !== null && raw > maxRaw) {
+      showWithdrawError(`The maximum per withdrawal is ${formatRaw(maxRaw, tokenState.decimals)} MUCHU.`);
+      return;
+    }
+    if (balanceRaw !== null && raw > balanceRaw) {
+      showWithdrawError(`That is more than your in-game balance of ${formatRaw(balanceRaw, tokenState.decimals)} MUCHU.`);
+      return;
+    }
+
+    tokenState.submitting = true;
+    updateWithdrawButton();
+    setWithdrawStatus('Sending withdrawal request…', 'pending');
+    try {
+      const res = await api('/api/token/withdraw', {
+        method: 'POST',
+        headers: tokenHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ amount }),
+      });
+      const id = firstDefined(res, ['withdrawalId', 'withdrawal_id', 'id']);
+      input.value = '';
+      tokenState.watchId = id === undefined ? null : id;
+      setWithdrawStatus('Withdrawal accepted — processing on-chain…', 'pending');
+      startWithdrawalPolling();
+    } catch (err) {
+      showWithdrawError(withdrawErrorCopy(err));
+      refreshWalletStatus(); // caps/paused state may explain the rejection
+    } finally {
+      tokenState.submitting = false;
+      updateWithdrawButton();
+    }
+  }
+
+  /* ----- init / teardown ----- */
+
+  async function initWalletCard(sessionToken) {
+    tokenState.token = sessionToken;
+    let status;
+    try {
+      status = await api('/api/token/status', {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+    } catch (err) {
+      // 404/501: token economy not configured — the card simply stays hidden.
+      if (!(err && (err.status === 404 || err.status === 501))) {
+        console.warn('[login] token status unavailable', err);
+      }
+      teardownWalletCard();
+      return;
+    }
+    renderWalletStatus(status);
+    show($('wallet-card'));
+    try {
+      const rows = await fetchWithdrawals();
+      renderWithdrawals(rows);
+      // Resume watching if a withdrawal is still in flight from a previous visit.
+      if (rows.some((row) => row && row.state && !TERMINAL_STATES.includes(String(row.state)))) {
+        startWithdrawalPolling();
+      }
+    } catch { /* history is non-essential at load time */ }
+  }
+
+  function teardownWalletCard() {
+    stopWithdrawalPolling();
+    tokenState.token = null;
+    tokenState.status = null;
+    tokenState.watchId = null;
+    tokenState.submitting = false;
+    hide($('wallet-card'));
+    $('withdraw-amount').value = '';
+    $('withdrawal-list').textContent = '';
+    hide($('withdraw-history'));
+    hide($('withdraw-error'));
+    setWithdrawStatus('', '');
+  }
+
+  /* ---------------------------------------------------------------- *
    * Session resume & view wiring                                      *
    * ---------------------------------------------------------------- */
 
@@ -509,6 +940,7 @@
       lsSet(LS.username, session.username);
       $('session-name').textContent = session.username;
       showView('view-session');
+      initWalletCard(token); // fire-and-forget: card appears only if token economy is live
     } catch (err) {
       if (err && (err.status === 401 || err.status === 403)) {
         lsClear();
@@ -534,9 +966,11 @@
     $('btn-logout').addEventListener('click', () => {
       lsClear();
       resetConnection();
+      teardownWalletCard();
       setBanner('');
       enterWalletsView();
     });
+    $('withdraw-form').addEventListener('submit', onWithdrawSubmit);
     $('btn-disconnect').addEventListener('click', () => {
       resetConnection();
       enterWalletsView();

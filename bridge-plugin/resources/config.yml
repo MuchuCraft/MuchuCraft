@@ -1,0 +1,4 @@
+# MuchuBridge — templated by start-all.sh from the root .env (BRIDGE_PORT / BRIDGE_TOKEN).
+# The HTTP server binds 127.0.0.1 only. An empty token disables the bridge.
+port: 8091
+token: ""

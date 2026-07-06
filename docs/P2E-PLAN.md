@@ -4,6 +4,20 @@ Proposal based on multi-agent research (July 2026): P2E economy post-mortems, Mi
 economy plugins, Solana token engineering, abuse prevention, and the regulatory/platform
 landscape. Facts below were verified against primary sources; judgments are marked.
 
+> **Decision log (2026-07-06).** The owner chose a **full 1:1 model** instead of the
+> phased points-first approach recommended below: the in-game currency IS the mainnet
+> MUCHU token, redeemable at par from a treasury the owner funds with market-bought
+> tokens. Implementation contract: `SPEC-TOKEN.md`; mainnet steps: `docs/MAINNET-CUTOVER.md`.
+> Consequences accepted with eyes open: every in-game faucet is a direct claim on the
+> treasury (Jobs daily limits are now the emission budget in real money), bot abuse is
+> direct theft rather than inflation, and this is the strongest "real income" shape both
+> regulatorily and under Mojang's blockchain policy (§0). Mitigations implemented:
+> solvency monitor with auto-pause, per-user/global daily withdrawal caps, withdrawal
+> minimums, single in-flight withdrawal per user, payouts only to the bound wallet,
+> hot-wallet float kept separate from the bulk treasury, and a kill switch
+> (`WITHDRAWALS_ENABLED=false`). The research and guardrail rationale below is kept
+> as-is — the sink/faucet, anti-abuse, and monitoring sections apply doubly under 1:1.
+
 ## 0. Read this first: the two existential risks
 
 **Platform risk (Mojang).** Mojang's Usage Guidelines (July 20, 2022, still live) state

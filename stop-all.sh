@@ -12,6 +12,15 @@ if [ -f .pids/gateway.pid ] && kill -0 "$(cat .pids/gateway.pid)" 2>/dev/null; t
   kill "$(cat .pids/gateway.pid)" && echo "[stop-all] gateway stopped"
 fi
 rm -f .pids/gateway.pid
+# Fallback: if something (e.g. an orphan from an older start) still holds the
+# gateway port, terminate it by port.
+GW_PORT="${PORT:-8090}"
+sleep 1
+if fuser "${GW_PORT}/tcp" >/dev/null 2>&1; then
+  echo "[stop-all] gateway port :$GW_PORT still held — killing listener"
+  fuser -k -TERM "${GW_PORT}/tcp" >/dev/null 2>&1 || true
+  sleep 2
+fi
 
 # --- Paper: graceful stop via RCON, fallback SIGTERM ---
 if [ -f .pids/paper.pid ] && kill -0 "$(cat .pids/paper.pid)" 2>/dev/null; then
@@ -30,4 +39,20 @@ if [ -f .pids/paper.pid ] && kill -0 "$(cat .pids/paper.pid)" 2>/dev/null; then
   echo "[stop-all] Paper stopped"
 fi
 rm -f .pids/paper.pid
+# Fallback: an orphaned Paper (stale/absent pid file) still bound to MC_PORT.
+MC_STOP_PORT="${MC_PORT:-25565}"
+if fuser "${MC_STOP_PORT}/tcp" >/dev/null 2>&1; then
+  echo "[stop-all] Paper port :$MC_STOP_PORT still held — asking it to stop via RCON"
+  (cd gateway && node --input-type=module -e "
+    import { Rcon } from 'rcon-client';
+    const r = await Rcon.connect({ host: '127.0.0.1', port: process.env.RCON_PORT || 25575, password: process.env.RCON_PASSWORD });
+    await r.send('stop'); await r.end();
+  " 2>/dev/null) || fuser -k -TERM "${MC_STOP_PORT}/tcp" >/dev/null 2>&1 || true
+  for i in $(seq 1 60); do fuser "${MC_STOP_PORT}/tcp" >/dev/null 2>&1 || break; sleep 1; done
+  if fuser "${MC_STOP_PORT}/tcp" >/dev/null 2>&1; then
+    echo "[stop-all] Paper still holding :$MC_STOP_PORT after 60s — SIGTERM by port"
+    fuser -k -TERM "${MC_STOP_PORT}/tcp" >/dev/null 2>&1 || true
+    sleep 5
+  fi
+fi
 echo "[stop-all] done"

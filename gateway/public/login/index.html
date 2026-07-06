@@ -74,6 +74,45 @@
       <p class="muted small">Signing is free — it never triggers a transaction or costs any fees.</p>
     </section>
 
+    <!-- Wallet / MUCHU token economy — shown only when a session is active
+         AND GET /api/token/status returns 200 (hidden when not configured). -->
+    <section id="wallet-card" class="wallet-card hidden" aria-label="MUCHU wallet">
+      <div class="wallet-head">
+        <h2 class="wallet-title">Wallet</h2>
+        <span id="wallet-cluster" class="wallet-cluster hidden"></span>
+      </div>
+
+      <div class="wallet-balance-row">
+        <div class="wallet-balance-cell">
+          <p class="wallet-label">In-game balance</p>
+          <p id="wallet-balance" class="wallet-balance">—</p>
+        </div>
+        <div class="wallet-balance-cell wallet-balance-cell-right">
+          <p class="wallet-label">Withdraws to</p>
+          <code id="wallet-bound" class="wallet-bound"></code>
+        </div>
+      </div>
+
+      <p id="wallet-paused" class="wallet-paused hidden" role="status"></p>
+
+      <form id="withdraw-form" class="withdraw-form" novalidate>
+        <label class="field-label" for="withdraw-amount">Withdraw MUCHU to your wallet</label>
+        <div class="withdraw-row">
+          <input id="withdraw-amount" type="text" inputmode="decimal" autocomplete="off"
+                 spellcheck="false" placeholder="Amount">
+          <button id="btn-withdraw" type="submit" class="btn btn-primary btn-withdraw">Withdraw</button>
+        </div>
+        <p id="withdraw-hints" class="wallet-hints"></p>
+        <p id="withdraw-status" class="status" aria-live="polite"></p>
+        <p id="withdraw-error" class="error hidden" role="alert"></p>
+      </form>
+
+      <div id="withdraw-history" class="withdraw-history hidden">
+        <p class="wallet-label">Recent withdrawals</p>
+        <ul id="withdrawal-list" class="withdrawal-list"></ul>
+      </div>
+    </section>
+
     <footer class="footer">
       <span class="footer-dot footer-dot-purple" aria-hidden="true"></span>
       <span class="footer-dot footer-dot-green" aria-hidden="true"></span>

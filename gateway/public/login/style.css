@@ -429,6 +429,212 @@ body {
 .footer-dot-purple { background: var(--sol-purple); }
 .footer-dot-green  { background: var(--sol-green); }
 
+/* ---------------------------------------------------------------- wallet card */
+
+.wallet-card {
+  margin-top: 22px;
+  padding: 18px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-2);
+  text-align: left;
+}
+
+.wallet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.wallet-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.wallet-cluster {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid rgba(153, 69, 255, 0.45);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.wallet-balance-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.wallet-balance-cell { min-width: 0; }
+.wallet-balance-cell-right { text-align: right; }
+
+.wallet-label {
+  margin: 0 0 2px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wallet-balance {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: linear-gradient(90deg, var(--sol-green), var(--sol-purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  word-break: break-all;
+}
+
+.wallet-bound {
+  display: inline-block;
+  max-width: 100%;
+  color: var(--text);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallet-paused {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(245, 201, 107, 0.5);
+  border-radius: var(--radius);
+  background: rgba(245, 201, 107, 0.07);
+  color: var(--warn);
+  font-size: 0.84rem;
+}
+
+.withdraw-form { margin: 0; }
+
+.withdraw-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+#withdraw-amount {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0d0d15;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+#withdraw-amount::placeholder { color: #55536a; font-weight: 400; }
+#withdraw-amount:focus {
+  border-color: var(--sol-purple);
+  box-shadow: 0 0 0 3px rgba(153, 69, 255, 0.25);
+}
+
+.btn-withdraw {
+  display: inline-block;
+  width: auto;
+  flex: none;
+  margin: 0;
+  padding: 12px 18px;
+}
+
+.wallet-hints {
+  margin: 8px 0 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+  min-height: 1em;
+}
+
+/* ---------------------------------------------------------------- withdrawal history */
+
+.withdraw-history {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.withdrawal-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.wd-item {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0d0d15;
+  font-size: 0.82rem;
+}
+
+.wd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wd-amount { font-weight: 700; }
+
+.wd-state {
+  flex: none;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--muted);
+}
+.wd-state-confirmed { color: var(--sol-green); border-color: rgba(20, 241, 149, 0.45); }
+.wd-state-failed    { color: var(--bad); border-color: rgba(255, 107, 129, 0.5); }
+.wd-state-refunded  { color: var(--warn); border-color: rgba(245, 201, 107, 0.5); }
+.wd-state-pending   { color: #b79aff; border-color: rgba(153, 69, 255, 0.45); }
+
+.wd-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.wd-link { color: var(--sol-green); text-decoration: none; }
+.wd-link:hover { text-decoration: underline; }
+
+.wd-error {
+  margin: 4px 0 0;
+  font-size: 0.74rem;
+  color: var(--bad);
+  word-break: break-word;
+}
+
 /* links */
 a { color: var(--sol-green); }
 a:hover { filter: brightness(1.15); }

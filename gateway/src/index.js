@@ -53,9 +53,11 @@ export function tcpCheck(host, port, timeoutMs = 1500) {
 /**
  * Build the express app. `netProxy` ({router, handleUpgrade}) is optional so
  * the app can boot (and be tested) before/without the proxy module.
- * @param {{config: object, db: object, netProxy?: {router: import('express').Router, handleUpgrade: (server: import('http').Server) => void}, limits?: object}} deps
+ * `tokenRoutes` (express Router) is optional: mounted at /api/token only when
+ * the MUCHU token economy is configured (MUCHU_MINT set).
+ * @param {{config: object, db: object, netProxy?: {router: import('express').Router, handleUpgrade: (server: import('http').Server) => void}, tokenRoutes?: import('express').Router|null, limits?: object}} deps
  */
-export function createApp({ config, db, netProxy = null, limits }) {
+export function createApp({ config, db, netProxy = null, tokenRoutes = null, limits }) {
   const app = express();
   app.disable('x-powered-by');
 
@@ -79,6 +81,10 @@ export function createApp({ config, db, netProxy = null, limits }) {
   app.use('/api/auth', createAuthRoutes({ config, db, limits }));
   if (netProxy?.router) {
     app.use('/api/vm/net', netProxy.router);
+  }
+  if (tokenRoutes) {
+    app.use('/api/token', cors({ allowedHeaders: ['Authorization', 'Content-Type'] }));
+    app.use('/api/token', tokenRoutes);
   }
 
   // --- static -------------------------------------------------------------
@@ -133,7 +139,23 @@ async function main() {
     console.warn('[gateway] net proxy unavailable (auth API still up):', err.message);
   }
 
-  const { app } = createApp({ config, db, netProxy });
+  // MUCHU token economy: mounted only when MUCHU_MINT is configured;
+  // warn-not-crash otherwise (mirrors the net proxy pattern above).
+  let tokenModule = null;
+  try {
+    const { loadTokenConfig, createTokenModule } = await import('./token/routes.js');
+    const tokenConfig = loadTokenConfig(config.root);
+    if (!tokenConfig.mint) {
+      console.warn('[token] MUCHU_MINT not set — /api/token disabled (run devnet setup, then restart)');
+    } else {
+      tokenModule = createTokenModule({ config, tokenConfig, db });
+      console.log(`[token] /api/token enabled (cluster ${tokenConfig.cluster}, mint ${tokenConfig.mint})`);
+    }
+  } catch (err) {
+    console.warn('[token] token module unavailable (rest of gateway still up):', err.message);
+  }
+
+  const { app } = createApp({ config, db, netProxy, tokenRoutes: tokenModule?.router ?? null });
   const server = http.createServer(app);
   if (netProxy?.handleUpgrade) {
     netProxy.handleUpgrade(server); // WS: /api/vm/net/socket + /api/vm/net/ping
@@ -141,10 +163,12 @@ async function main() {
 
   server.listen(config.port, () => {
     console.log(`[gateway] listening on http://localhost:${config.port} (mc ${config.mcHost}:${config.mcPort}, version ${config.mcVersion})`);
+    tokenModule?.worker.start(); // withdrawal queue + crash recovery + solvency monitor
   });
 
   const shutdown = () => {
     console.log('[gateway] shutting down');
+    tokenModule?.close();
     server.close(() => {
       db.close();
       process.exit(0);
