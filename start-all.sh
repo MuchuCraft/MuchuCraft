@@ -33,6 +33,10 @@ mkdir -p server/plugins/MuchuBridge
 } > server/plugins/MuchuBridge/config.yml
 chmod 600 server/plugins/MuchuBridge/config.yml
 
+# --- world datapacks (committed under server/datapacks/) ---
+mkdir -p server/world/datapacks
+cp -r server/datapacks/. server/world/datapacks/ 2>/dev/null || true
+
 # --- Paper server ---
 if port_open "$MC_PORT"; then
   echo "[start-all] Minecraft server already listening on :$MC_PORT"

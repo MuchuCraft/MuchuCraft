@@ -40,6 +40,14 @@ function clientConfigOverrides(config) {
         version: config.clientMcVersion || config.mcVersion,
       },
     ],
+    // ESC pause menu buttons: replace upstream GitHub/Discord with ours
+    // (type 'url' renders a plain link button; 'github'/'discord' presets
+    // are hardwired to the upstream project).
+    pauseLinks: [[
+      { type: 'url', url: 'https://github.com/MuchuCraft/MuchuCraft', text: 'GitHub' },
+      { type: 'url', url: 'https://x.com/muchucraft', text: 'X @muchucraft' },
+    ]],
+    rightSideText: 'MuchuCraft — wallet-verified survival',
   };
 }
 

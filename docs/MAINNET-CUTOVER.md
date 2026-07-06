@@ -136,3 +136,21 @@ restart. Devnet and mainnet state never mix: the ledger DB records withdrawals
 against whatever cluster was active, so avoid flip-flopping with pending
 withdrawals in flight — drain or refund them first (worker handles permanent
 failures by refunding in-game balances automatically).
+
+## Status 2026-07-06 — cutover attempted, BLOCKED (two independent reasons)
+
+1. **The mainnet mint does not resolve.** `R76wEBCrjipkHB8999utYpsECG6qM5S7a49YWKmuchu`
+   returns no account. If this is a pre-ground vanity keypair, the token still needs to
+   be created with it; if the token exists, re-check the address.
+2. **This host cannot currently read mainnet account data at all.** The USDC mint —
+   which certainly exists — is unreadable via both the Helius mainnet RPC and the
+   public mainnet RPC from this box (genesis-hash queries work; account queries return
+   null). Until that is resolved, the withdrawal worker and solvency monitor cannot
+   operate safely against mainnet from here.
+
+Preparation completed in advance: all devnet-era test balances zeroed (in-game money
+supply is 0), token e2e suites refuse mainnet without E2E_ALLOW_MAINNET=1, and
+`gateway/scripts/mainnet-preflight.mjs` now gates the flip — run it with your mainnet
+RPC; it must print ALL CHECKS PASSED before touching .env. Fund the treasury hot wallet
+(address printed by the preflight) with a small SOL float (~0.5) and the MUCHU float
+you're comfortable keeping hot; keep the bulk in a separate wallet.

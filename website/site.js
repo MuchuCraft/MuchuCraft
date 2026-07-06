@@ -10,6 +10,21 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObse
   document.querySelectorAll('.reveal').forEach((el) => el.classList.add('in'));
 }
 
+// Copy-to-clipboard for the token address.
+const copyBtn = document.getElementById('copy-token');
+if (copyBtn) {
+  copyBtn.addEventListener('click', async () => {
+    const hint = document.getElementById('copy-hint');
+    try {
+      await navigator.clipboard.writeText(copyBtn.dataset.address);
+      hint.textContent = 'copied ✓';
+    } catch {
+      hint.textContent = 'select & copy';
+    }
+    setTimeout(() => { hint.textContent = 'copy'; }, 2000);
+  });
+}
+
 // Live cluster badge — degrades to hidden if the game host is unreachable.
 fetch('https://web.muchu.app/api/token/status', { signal: AbortSignal.timeout(4000) })
   .then((r) => (r.ok ? r.json() : null))

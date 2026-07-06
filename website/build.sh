@@ -39,6 +39,11 @@ Object.assign(cfg, {
     description: 'Wallet-verified survival — muchucraft',
     version: '1.21.8',
   }],
+  pauseLinks: [[
+    { type: 'url', url: 'https://github.com/MuchuCraft/MuchuCraft', text: 'GitHub' },
+    { type: 'url', url: 'https://x.com/muchucraft', text: 'X @muchucraft' },
+  ]],
+  rightSideText: 'MuchuCraft — wallet-verified survival',
 });
 fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
 console.log('[build] play config patched: proxy=' + gameHost);

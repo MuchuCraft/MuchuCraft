@@ -129,6 +129,24 @@ figcaption {
 .stat-list li::before { content: '— '; color: var(--accent); }
 .economy-shot img { border: 1px solid var(--rule); border-radius: 6px; }
 
+.token-row { margin-top: 1.8rem; }
+.token-label {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-dim);
+}
+.token-address {
+  display: flex; align-items: center; gap: 1rem; justify-content: space-between;
+  width: 100%; max-width: 36rem; margin-top: 0.5rem;
+  background: #141417; border: 1px solid var(--rule); border-radius: 5px;
+  padding: 0.65rem 0.9rem; cursor: pointer;
+  font-family: var(--mono); font-size: 0.82rem; color: var(--ink);
+  text-align: left; overflow-wrap: anywhere;
+  transition: border-color 150ms ease;
+}
+.token-address:hover { border-color: var(--accent); }
+.copy-hint { color: var(--accent); font-size: 0.75rem; flex: none; }
+.token-note { margin-top: 0.6rem; font-size: 0.85rem; color: var(--ink-dim); max-width: 34rem; }
+
 /* ---------- server address ---------- */
 .server { padding: clamp(3rem, 9vh, 7rem) var(--pad); text-align: center; }
 .server-address {

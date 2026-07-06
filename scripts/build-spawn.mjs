@@ -388,9 +388,13 @@ function phaseDisplays() {
     C('❖ claim land with a ', PALE), C('golden shovel', GREEN, true),
     C(' — the wilderness is yours', PALE),
   ], 1.0));
+  cmds.push(textDisplay(0.5, 119.4, 0.5, [
+    C('MUCHU is live on ', PALE), C('DEVNET', GREEN, true),
+    C(' · migrating to ', PALE), C('MAINNET', PURPLE, true),
+  ], 0.8));
   return cmds;
 }
-const EXPECTED_DISPLAYS = 6;
+const EXPECTED_DISPLAYS = 7;
 
 // ------------------------------------------------------------------ runner
 const BENIGN = [

@@ -32,6 +32,14 @@ try {
 
 const GATEWAY = process.env.GATEWAY_URL ?? `http://localhost:${process.env.PORT ?? '8080'}`;
 const MC_VERSION = process.env.CLIENT_MC_VERSION || process.env.MC_VERSION;
+
+// Safety: these suites move tokens. Refuse to run against mainnet unless
+// explicitly forced — a casual re-run must never spend real funds.
+if ((process.env.SOLANA_CLUSTER || '').startsWith('mainnet') && process.env.E2E_ALLOW_MAINNET !== '1') {
+  console.error('[e2e] SOLANA_CLUSTER is mainnet — refusing to run token tests with real funds. Set E2E_ALLOW_MAINNET=1 to override.');
+  process.exit(2);
+}
+
 const RPC_URL = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
 const MUCHU_MINT = (process.env.MUCHU_MINT ?? '').trim();
 const DECIMALS = Number(process.env.MUCHU_DECIMALS ?? '6');
