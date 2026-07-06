@@ -1,0 +1,16 @@
+{
+  "name": "muchucraft-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end tests: fake Solana wallet + mineflayer bot through the auth proxy",
+  "scripts": {
+    "test": "node run-e2e.js"
+  },
+  "dependencies": {
+    "bs58": "^6.0.0",
+    "mineflayer": "^4.37.0",
+    "tweetnacl": "^1.0.3",
+    "ws": "^8.18.0"
+  }
+}

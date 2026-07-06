@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0b12">
+  <title>MuchuCraft — Sign in with Solana</title>
+  <link rel="icon" type="image/png" href="./muchu.png">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="bg-glow bg-glow-purple" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-green" aria-hidden="true"></div>
+
+  <main class="card">
+    <img class="logo" src="./muchu.png" alt="MuchuCraft logo" width="112" height="112">
+    <h1 class="title">Muchu<span class="title-accent">Craft</span></h1>
+    <p class="tagline">Wallet-verified Minecraft, right in your browser</p>
+
+    <div id="banner" class="banner hidden" role="status" aria-live="polite"></div>
+
+    <!-- Checking stored session -->
+    <section id="view-loading" class="view">
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="muted">Checking your session…</p>
+    </section>
+
+    <!-- Valid stored session: resume without re-signing -->
+    <section id="view-session" class="view hidden">
+      <p class="continue-label">Welcome back — continue as</p>
+      <p class="continue-name" id="session-name"></p>
+      <button id="btn-play" type="button" class="btn btn-primary">Play</button>
+      <button id="btn-logout" type="button" class="btn btn-ghost">Use a different wallet</button>
+    </section>
+
+    <!-- Wallet discovery / selection -->
+    <section id="view-wallets" class="view hidden">
+      <h2 class="section-title">Connect a Solana wallet</h2>
+      <div id="wallet-list" class="wallet-list"></div>
+      <p id="wallet-scanning" class="muted small">
+        <span class="spinner spinner-inline" aria-hidden="true"></span>
+        Looking for Solana wallets…
+      </p>
+      <div id="no-wallet" class="no-wallet hidden">
+        <p>No Solana wallet was found in this browser.</p>
+        <p class="muted small">Install a wallet extension, then come back and scan again.</p>
+        <a class="btn btn-secondary" href="https://phantom.com/download" target="_blank" rel="noopener noreferrer">Get Phantom</a>
+        <button id="btn-rescan" type="button" class="btn btn-ghost">Scan again</button>
+      </div>
+    </section>
+
+    <!-- Username + sign -->
+    <section id="view-username" class="view hidden">
+      <div class="connected-chip">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="connected-wallet" class="chip-wallet"></span>
+        <code id="connected-address" class="chip-address"></code>
+        <button id="btn-disconnect" type="button" class="chip-change">change</button>
+      </div>
+
+      <label class="field-label" for="username">Choose your Minecraft username</label>
+      <input id="username" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+             maxlength="16" placeholder="3–16 letters, numbers or _" inputmode="text">
+      <p id="username-status" class="status" aria-live="polite"></p>
+
+      <details id="message-details" class="message-details hidden">
+        <summary>View the exact message you are signing</summary>
+        <pre id="message-text"></pre>
+      </details>
+
+      <button id="btn-sign" type="button" class="btn btn-primary" disabled>Sign &amp; Play</button>
+      <p id="sign-error" class="error hidden" role="alert"></p>
+      <p class="muted small">Signing is free — it never triggers a transaction or costs any fees.</p>
+    </section>
+
+    <footer class="footer">
+      <span class="footer-dot footer-dot-purple" aria-hidden="true"></span>
+      <span class="footer-dot footer-dot-green" aria-hidden="true"></span>
+      <span>Your signature proves username ownership — nothing leaves your wallet but a signature.</span>
+    </footer>
+  </main>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>

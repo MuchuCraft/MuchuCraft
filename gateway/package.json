@@ -1,0 +1,21 @@
+{
+  "name": "muchucraft-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MuchuCraft gateway: Solana wallet auth + Minecraft WebSocket proxy + web client host",
+  "license": "MIT",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "bs58": "^6.0.0",
+    "compression": "^1.7.5",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "rcon-client": "^4.2.4",
+    "tweetnacl": "^1.0.3",
+    "ws": "^8.18.0"
+  }
+}

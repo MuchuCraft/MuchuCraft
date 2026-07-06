@@ -1,0 +1,44 @@
+# secrets & local state
+.env
+gateway/data/
+.pids/
+logs/
+*.log
+
+# dependencies
+node_modules/
+
+# downloaded artifacts (recreated by setup scripts)
+client/dist/
+client/self-host.zip
+client/server.js
+client/*.html
+
+# Minecraft server runtime & downloaded jars (recreated by server/setup.sh)
+server/*.jar
+server/plugins/
+server/world/
+server/world_nether/
+server/world_the_end/
+server/libraries/
+server/versions/
+server/cache/
+server/config/
+server/logs/
+server/crash-reports/
+server/banned-*.json
+server/ops.json
+server/whitelist.json
+server/usercache.json
+server/permissions.yml
+server/help.yml
+server/commands.yml
+server/bukkit.yml
+server/spigot.yml
+server/server.properties
+server/eula.txt
+server/version_history.json
+server/.console_history
+e2e/.e2e-wallet.json
+server/logs-boot.out
+server/logs-run.out
