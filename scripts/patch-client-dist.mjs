@@ -44,22 +44,34 @@ const GUARD = `// MuchuCraft pointer-lock guard — see scripts/patch-client-dis
 
 })();
 
-// ---- Fresh-code guarantee --------------------------------------------------
-// The client registers a service worker that can keep serving a stale cached
-// build to returning players even after a hard refresh. Purge it so everyone
-// runs the current code; reload once if we actually removed a stale worker.
+// ---- No service worker -----------------------------------------------------
+// The client registers a service worker that caches the whole build. That
+// caused two player-visible failures: (1) a returning player kept running a
+// STALE pre-update bundle even after a hard refresh (broken inventory), and
+// (2) SW-served responses can drop the COOP/COEP headers the chunk mesher
+// needs for SharedArrayBuffer, so the world renders as empty sky. The gateway
+// already serves every asset with the correct headers, so the SW only hurts.
+// Runs in <head> BEFORE the client's bundle, so registration never happens.
 (() => {
   'use strict';
   if (!('serviceWorker' in navigator)) return;
+  // Prevent the client from ever registering its worker (stub a success so its
+  // init code doesn't error).
+  try {
+    const noop = () => {};
+    const stub = { installing: null, waiting: null, active: null, scope: location.origin + '/',
+      update: () => Promise.resolve(), unregister: () => Promise.resolve(true),
+      addEventListener: noop, removeEventListener: noop };
+    navigator.serviceWorker.register = () => Promise.resolve(stub);
+  } catch { /* ignore */ }
+  // Tear down any worker + caches left by a previous build; reload once so the
+  // now-uncached, correctly-headered assets load fresh.
   navigator.serviceWorker.getRegistrations().then((regs) => {
-    if (!regs.length) return;
     let removed = false;
     Promise.all(regs.map((r) => r.unregister().then((ok) => { removed = removed || ok; })))
       .then(() => (self.caches ? caches.keys() : []))
       .then((keys) => Promise.all((keys || []).map((k) => caches.delete(k))))
       .then(() => {
-        // One-shot reload (guarded by a session flag) so the fresh, un-SW'd
-        // assets load — never loops.
         if (removed && !sessionStorage.getItem('muchu-sw-purged')) {
           sessionStorage.setItem('muchu-sw-purged', '1');
           location.reload();
