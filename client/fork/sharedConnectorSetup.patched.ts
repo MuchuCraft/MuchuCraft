@@ -148,12 +148,12 @@ export function buildItemMapper (version: string) {
       let displayName = nameRaw
         ? flat(nameRaw).map((p: any) => (typeof p === 'string' ? p : (p?.text ?? ''))).join('')
         : slot.displayName
-      // MuchuCraft: @xmcl/text-component's flat() doesn't understand 1.20.5+
-      // NBT-component names (as ViaBackwards delivers them), so a custom name
-      // can flatten to raw serialized JSON ({"type":"string","value":…}).
-      // Never show that — fall back to the clean vanilla item name.
+      // MuchuCraft safety net: item names/lore are parsed to readable text at
+      // the source (getItemMetadata → componentToText), so this only trips on a
+      // genuine raw prismarine-nbt dump ({"type":"string"/"compound"/"list"…})
+      // — never on a legit job name/description. Falls back to the vanilla name.
       const looksRaw = (s?: string) =>
-        !s || s.includes('undefined') || /"(type|value|text)"\s*:/.test(s) || /^[[{]/.test(s.trim());
+        !s || s.includes('undefined') || /"type"\s*:\s*"(string|compound|list|int|byte|short|long|float|double)"/.test(s);
       const prettyName = (slot.name || `item`).replace(/^minecraft:/, '').replace(/_/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase());
       if (looksRaw(displayName)) displayName = prettyName;

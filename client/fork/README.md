@@ -30,3 +30,24 @@ right-click split, shift-click quick-move, and held-item distribute-drag all sti
 `build-fork.sh` clones the pinned upstream commit, overlays this patched file, builds with
 rsbuild, and installs the result into `../dist`. The built `dist/` is gitignored (large);
 this patch + script are the reproducible source of truth.
+
+## Known-open: mesher WASM init race (stars / xray)
+
+`mesherWasm.worker.patched.ts` is a clean fix for a real upstream bug: the
+mesher worker instantiates its WASM asynchronously after the first `mesherData`
+message (`initWasm()` awaits `wasm.default()`), but chunk/geometry messages that
+drain during that await call the mesher before the instance exists →
+`undefined.__wbindgen_malloc` → the column never meshes. On slower machines the
+WASM always finishes after the first chunks, so those players get stars/xray
+consistently while faster machines render fine.
+
+The fix (search `MuchuCraft` in the file): buffer every non-`mesherData`
+message until `allDataReady`, then replay in order.
+
+**Not applied in our build.** `minecraft-renderer` ships `src` + `dist` but NOT
+its worker build config, and rebuilding the worker ourselves is unsafe:
+esbuild without the original externals bundles all of minecraft-data (~259 MB),
+and a runtime `self.onmessage` wrapper broke the batched message protocol
+(`o.reduce is not a function`). The correct path is to land this patch upstream
+(zardoy/minecraft-web-client → minecraft-renderer) where it can be built
+properly. Mitigated meanwhile by lower view-distance (fewer columns racing).
