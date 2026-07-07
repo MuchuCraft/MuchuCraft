@@ -384,6 +384,13 @@ online-mode=false
 server-ip=127.0.0.1
 server-port=${MC_PORT}
 enforce-secure-profile=false
+# Command blocks power the spawn adventure pad (scripts/build-spawn.mjs).
+# VERIFIED on Paper 1.21.11: this key was REMOVED upstream (absent from
+# DedicatedServerProperties; the server drops it when it rewrites the file) —
+# command blocks are gated by the 'command_blocks_work' GAMERULE instead
+# (defaults to true, persists in level.dat, asserted by build-spawn.mjs).
+# The key is kept for older Paper builds; 1.21.11 silently ignores it.
+enable-command-block=true
 enable-rcon=true
 rcon.port=${RCON_PORT}
 rcon.password=${RCON_PASSWORD}

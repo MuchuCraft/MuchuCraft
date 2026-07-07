@@ -7,7 +7,9 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -17,12 +19,14 @@ import org.bukkit.command.CommandSender;
  * the in-game /deposit command with it (SPEC-PHASE3 §1). Persisted to
  * plugins/MuchuBridge/deposit-info.json so a server restart keeps /deposit
  * working even before the gateway re-pushes (it only pushes when IT boots).
+ * pageUrl (optional, may be absent in older persisted files) powers the
+ * clickable "open the deposit page" line — the web page with QR & details.
  */
 final class DepositInfo implements CommandExecutor {
     private final MuchuBridgePlugin plugin;
     private volatile Info info; // null until first push/load
 
-    private record Info(String address, String minimum, String gateThreshold) {}
+    private record Info(String address, String minimum, String gateThreshold, String pageUrl) {}
 
     DepositInfo(MuchuBridgePlugin plugin) {
         this.plugin = plugin;
@@ -42,7 +46,8 @@ final class DepositInfo implements CommandExecutor {
                     && m.get("address") instanceof String address
                     && m.get("minimum") instanceof String minimum
                     && m.get("gateThreshold") instanceof String gateThreshold) {
-                info = new Info(address, minimum, gateThreshold);
+                String pageUrl = m.get("pageUrl") instanceof String s ? s : null; // absent pre-pageUrl
+                info = new Info(address, minimum, gateThreshold, pageUrl);
                 plugin.getLogger().info("deposit-info restored from disk (address " + address + ")");
             }
         } catch (Exception e) {
@@ -50,13 +55,14 @@ final class DepositInfo implements CommandExecutor {
         }
     }
 
-    /** Store a validated push from the gateway and persist it. */
-    void set(String address, String minimum, String gateThreshold) {
-        info = new Info(address, minimum, gateThreshold);
+    /** Store a validated push from the gateway and persist it (pageUrl may be null). */
+    void set(String address, String minimum, String gateThreshold, String pageUrl) {
+        info = new Info(address, minimum, gateThreshold, pageUrl);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("address", address);
         out.put("minimum", minimum);
         out.put("gateThreshold", gateThreshold);
+        if (pageUrl != null) out.put("pageUrl", pageUrl);
         try {
             Files.createDirectories(plugin.getDataFolder().toPath());
             Files.writeString(file(), Json.write(out), StandardCharsets.UTF_8);
@@ -64,7 +70,8 @@ final class DepositInfo implements CommandExecutor {
             plugin.getLogger().warning("could not persist deposit-info.json: " + e.getMessage());
         }
         plugin.getLogger().info("deposit-info set: address=" + address
-                + " minimum=" + minimum + " gateThreshold=" + gateThreshold);
+                + " minimum=" + minimum + " gateThreshold=" + gateThreshold
+                + (pageUrl != null ? " pageUrl=" + pageUrl : ""));
     }
 
     private static final Component PREFIX = Component.text("[MuchuCraft] ", NamedTextColor.AQUA);
@@ -85,6 +92,12 @@ final class DepositInfo implements CommandExecutor {
                 .append(Component.text(". Deposit ", NamedTextColor.GRAY))
                 .append(Component.text(current.gateThreshold() + " MUCHU", NamedTextColor.WHITE))
                 .append(Component.text(" in total to unlock every job.", NamedTextColor.GRAY)));
+        if (current.pageUrl() != null) {
+            sender.sendMessage(Component.text("Open the deposit page — QR & details", NamedTextColor.LIGHT_PURPLE)
+                    .decorate(TextDecoration.UNDERLINED)
+                    .clickEvent(ClickEvent.openUrl(current.pageUrl()))
+                    .hoverEvent(Component.text(current.pageUrl(), NamedTextColor.GRAY)));
+        }
         return true;
     }
 }

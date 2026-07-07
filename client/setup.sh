@@ -15,3 +15,7 @@ curl -fL -o self-host.zip "https://github.com/zardoy/minecraft-web-client/releas
 unzip -oq self-host.zip
 [ -d dist ] || { echo "[client] extraction failed — no dist/"; exit 1; }
 echo "[client] done ($(du -sh dist | cut -f1) in dist/)"
+
+# MuchuCraft pointer-lock guard (fixes upstream #562 — GUI clicks re-capturing
+# the mouse). Idempotent; re-applied on every fresh download.
+node "$(dirname "${BASH_SOURCE[0]}")/../scripts/patch-client-dist.mjs" dist

@@ -8,6 +8,16 @@
  * stubs, layered lighting (lanterns + froglights + amethyst + hidden light
  * blocks), tagged text_displays and cherry sign boards.
  *
+ * Plus the ADVENTURE PAD (server-UX polish): a 3x3 smooth-quartz pad on the
+ * south path grade (probed live: the flat channel past the grand stair is
+ * x -3..-1 at z 29..31, tops y110-111; the hill rises to y116+ for x >= 0)
+ * with a player-only polished_blackstone_pressure_plate wired to a hidden
+ * impulse command block one block below its support (vanilla RTP via
+ * spreadplayers). Requires gamerule command_blocks_work true — the 1.21.11
+ * REPLACEMENT for the removed server.properties enable-command-block key
+ * (verified: the key is gone from DedicatedServerProperties; the gamerule
+ * defaults to true and persists in level.dat). Asserted below.
+ *
  * - Vanilla console commands only over RCON (fill/setblock/summon/kill/...).
  * - IDEMPOTENT: safe to re-run. text_displays are tagged muchu_spawn and
  *   killed before re-summoning; all geometry is deterministic set/fill.
@@ -349,6 +359,50 @@ function phaseStubs() {
   }
   return cmds;
 }
+// ADVENTURE PAD (south path, past the grand stair): 3x3 smooth-quartz pad,
+// player-only polished_blackstone_pressure_plate centered on a quartz_block,
+// impulse command block hidden directly below the plate's support block.
+// Wiring (vanilla): the plate STRONGLY powers its support block; a mechanism
+// component adjacent to a powered block activates, so the CB one block below
+// fires on step. Proven live by pulsing plate[powered=true] and reading the
+// CB's LastOutput (see the verification section in main()).
+const PAD = { x: -2, y: 110, z: 30 };   // pad floor center; players walk at 111
+const PAD_CMD = 'spreadplayers 0 0 200 2400 false @p[distance=..5]';
+function phaseAdventure() {
+  const cmds = [];
+  const { x, y, z } = PAD;
+  // foundations: seal caves under the approach strip + pad (probe found holes
+  // to y105 nearby); 'keep' plugs the two open pits west of the pad (x=-4).
+  cmds.push(`fill ${x} ${y - 4} 27 ${x + 2} ${y - 1} 28 minecraft:stone`);
+  cmds.push(`fill ${x - 1} ${y - 4} ${z - 1} ${x + 1} ${y - 1} ${z + 1} minecraft:stone`);
+  for (const zz of [28, 30]) cmds.push(`fill -4 ${y - 5} ${zz} -4 ${y} ${zz} minecraft:stone keep`);
+  // hidden command block (air-then-place so Command/LastOutput reset on re-run)
+  cmds.push(`setblock ${x} ${y - 1} ${z} minecraft:air`);
+  cmds.push(`setblock ${x} ${y - 1} ${z} minecraft:command_block[facing=up]{Command:${sq(PAD_CMD)},auto:0b}`);
+  // approach strip from the stair exit (walk y111 at z26) + pad floor
+  cmds.push(`fill ${x} ${y} 27 ${x + 2} ${y} 28 minecraft:smooth_quartz`);
+  cmds.push(`fill ${x - 1} ${y} ${z - 1} ${x + 1} ${y} ${z + 1} minecraft:smooth_quartz`);
+  cmds.push(`setblock ${x} ${y} ${z} minecraft:quartz_block`);          // plate support
+  // headroom (BEFORE plate/gate so the clears cannot delete them)
+  cmds.push(`fill ${x} ${y + 1} 27 ${x + 2} ${y + 4} 28 minecraft:air`);
+  cmds.push(`fill ${x - 1} ${y + 1} ${z - 1} ${x + 1} ${y + 4} ${z + 1} minecraft:air`);
+  // the player-only plate (blackstone: mobs/items cannot trigger it)
+  cmds.push(`setblock ${x} ${y + 1} ${z} minecraft:polished_blackstone_pressure_plate`);
+  // mini torii behind the pad (z=32) framing the way out, hanging sign under
+  // the lintel facing the arriving player (rotation=8 = faces north).
+  cmds.push(`fill ${x - 1} ${y} 32 ${x + 1} ${y} 32 minecraft:smooth_quartz`);
+  cmds.push(`fill ${x - 1} ${y + 1} 32 ${x + 1} ${y + 5} 32 minecraft:air`);
+  for (const px of [x - 1, x + 1]) cmds.push(`fill ${px} ${y + 1} 32 ${px} ${y + 3} 32 minecraft:purpur_pillar`);
+  cmds.push(`fill ${x - 1} ${y + 4} 32 ${x + 1} ${y + 4} 32 minecraft:stripped_cherry_log[axis=x]`);
+  cmds.push(`setblock ${x} ${y + 5} 32 minecraft:lantern[hanging=false]`);
+  cmds.push(`setblock ${x} ${y + 3} 32 minecraft:air`);
+  cmds.push(`setblock ${x} ${y + 3} 32 minecraft:cherry_hanging_sign[rotation=8,attached=false]` +
+    signNBT(['ADVENTURE →', 'step the plate', 'or /tpr', ''], ['← SPAWN', 'plaza', '', '']));
+  // night safety: invisible light above the plate (head space, no collision)
+  cmds.push(`setblock ${x} ${y + 2} ${z} minecraft:light[level=15]`);
+  return cmds;
+}
+
 // Hidden light grid: light level 15 every 5 blocks at feet level keeps the
 // whole floor >= light 10 mathematically (worst case taxicab distance 5).
 function phaseLights() {
@@ -392,9 +446,15 @@ function phaseDisplays() {
     C('MUCHU is live on ', PALE), C('DEVNET', GREEN, true),
     C(' · migrating to ', PALE), C('MAINNET', PURPLE, true),
   ], 0.8));
+  // adventure pad marker (south path; PAD center block +0.5 each axis)
+  cmds.push(textDisplay(PAD.x + 0.5, PAD.y + 3.4, PAD.z + 0.5, [
+    C('step on the plate', PURPLE, true),
+    C(' — the wild awaits ', PALE),
+    C('(or /tpr in chat)', GREEN),
+  ], 0.9));
   return cmds;
 }
-const EXPECTED_DISPLAYS = 7;
+const EXPECTED_DISPLAYS = 8;
 
 // ------------------------------------------------------------------ runner
 const BENIGN = [
@@ -417,6 +477,7 @@ async function main() {
     ['gates', phaseGates()],
     ['pillars', phasePillars()],
     ['stubs', phaseStubs()],
+    ['adventure', phaseAdventure()],
     ['lights', phaseLights()],
     ['displays', phaseDisplays()],
   ];
@@ -478,6 +539,14 @@ async function main() {
   console.log(`[build-spawn] setworldspawn -> ${wsReply.trim()}`);
   const grReply = await send('gamerule respawn_radius 0');
   console.log(`[build-spawn] respawn_radius -> ${grReply.trim()}`);
+  // 1.21.11: command blocks are gamerule-gated (enable-command-block was
+  // REMOVED from server.properties). Default is true; assert it anyway so the
+  // adventure pad works on fresh installs. Persists in level.dat.
+  const cbReply = await send('gamerule command_blocks_work true');
+  console.log(`[build-spawn] command_blocks_work -> ${cbReply.trim()}`);
+  // survival QoL: 30% of online players sleeping skips the night.
+  const slReply = await send('gamerule players_sleeping_percentage 30');
+  console.log(`[build-spawn] players_sleeping_percentage -> ${slReply.trim()}`);
 
   // ---- Essentials spawn (EssentialsXSpawn reads plugins/Essentials/spawn.yml)
   const spawnYml = path.join(ROOT, 'server', 'plugins', 'Essentials', 'spawn.yml');
@@ -507,6 +576,9 @@ async function main() {
     [`if block 10 117 5 minecraft:light`, 'light grid sample (10,117,5)'],
     [`if block -10 117 -10 minecraft:light`, 'light grid sample (-10,117,-10)'],
     [`if block 0 117 -20 minecraft:light`, 'gateway light sample (0,117,-20)'],
+    [`if block ${PAD.x} ${PAD.y - 1} ${PAD.z} minecraft:command_block`, `adventure CB hidden (${PAD.x},${PAD.y - 1},${PAD.z})`],
+    [`if block ${PAD.x} ${PAD.y} ${PAD.z} minecraft:quartz_block`, 'adventure plate support block'],
+    [`if block ${PAD.x} ${PAD.y + 1} ${PAD.z} minecraft:polished_blackstone_pressure_plate`, 'adventure plate (player-only)'],
   ];
   let pass = 0, fail = 0;
   for (const [probe, label] of probes) {
@@ -515,6 +587,33 @@ async function main() {
     ok ? pass++ : fail++;
     console.log(`[build-spawn] ${ok ? 'PASS' : 'FAIL'}: ${label}`);
   }
+
+  // ---- adventure pad: command + live wiring proof ----------------------
+  // 1) the hidden CB carries the exact RTP command;
+  const cbData = await send(`data get block ${PAD.x} ${PAD.y - 1} ${PAD.z} Command`);
+  const cbOk = cbData.includes('spreadplayers 0 0 200 2400 false @p[distance=..5]');
+  cbOk ? pass++ : fail++;
+  console.log(`[build-spawn] ${cbOk ? 'PASS' : 'FAIL'}: adventure CB Command -> ${cbData.trim().slice(0, 120)}`);
+  // 2) pulse the plate state (powered=true emulates a player step: the plate
+  // strongly powers its support block, which activates the CB below). One
+  // caveat found empirically: /setblock only updates the PLATE's direct
+  // neighbours, so the CB two blocks down never re-checks its power — on a
+  // real step vanilla's BasePressurePlateBlock.updateNeighbours() updates the
+  // neighbours of both the plate AND its support block, which reaches the CB.
+  // Emulate that by nudging a block adjacent to the CB while the plate state
+  // is powered: the CB re-evaluates (power checks are state-based) and RUNS
+  // spreadplayers — nobody is within 5 blocks, so LastOutput records the
+  // attempt. Any LastOutput proves plate-power -> support -> CB end-to-end
+  // (the air-then-place above cleared LastOutput this run).
+  await send(`setblock ${PAD.x} ${PAD.y + 1} ${PAD.z} minecraft:polished_blackstone_pressure_plate[powered=true]`);
+  await send(`setblock ${PAD.x} ${PAD.y - 2} ${PAD.z} minecraft:air`);      // update reaches the CB
+  await new Promise((r) => setTimeout(r, 1500));
+  const lastOut = await send(`data get block ${PAD.x} ${PAD.y - 1} ${PAD.z} LastOutput`);
+  const fired = !/Found no elements/i.test(lastOut) && /LastOutput|following block data/i.test(lastOut);
+  fired ? pass++ : fail++;
+  console.log(`[build-spawn] ${fired ? 'PASS' : 'FAIL'}: adventure CB fired on plate pulse -> ${lastOut.trim().slice(0, 160)}`);
+  await send(`setblock ${PAD.x} ${PAD.y - 2} ${PAD.z} minecraft:stone`);    // restore the nudged block
+  await send(`setblock ${PAD.x} ${PAD.y + 1} ${PAD.z} minecraft:polished_blackstone_pressure_plate[powered=false]`);
   const after = await countTagged();
   console.log(`[build-spawn] muchu_spawn text_displays after: ${after} (expected ${EXPECTED_DISPLAYS})`);
   if (after !== EXPECTED_DISPLAYS) fail++;

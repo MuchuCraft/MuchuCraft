@@ -23,6 +23,9 @@ unzip -oq /tmp/mwc-self-host.zip -d /tmp/mwc-bundle
 mv /tmp/mwc-bundle/dist public/play
 rm -rf /tmp/mwc-bundle /tmp/mwc-self-host.zip
 
+# MuchuCraft pointer-lock guard (fixes upstream #562).
+node ../scripts/patch-client-dist.mjs public/play
+
 # Point the client at the game host's proxy and pin the promoted server.
 node - "$GAME_HOST" <<'EOF'
 const fs = require('fs');

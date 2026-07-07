@@ -110,7 +110,7 @@ test('all token routes require a valid session Bearer', async (t) => {
   assert.equal((await post(base, '/api/token/withdraw', { amount: '25' })).status, 401);
 });
 
-test('GET /status with NO Bearer is the PUBLIC subset (landing-page badge): cluster + mint only', async (t) => {
+test('GET /status with NO Bearer is the PUBLIC subset (landing-page badge): cluster + mint', async (t) => {
   const { base } = await boot(t);
   const { status, body } = await get(base, '/api/token/status');
   assert.equal(status, 200);
@@ -120,6 +120,10 @@ test('GET /status with NO Bearer is the PUBLIC subset (landing-page badge): clus
   assert.equal(body.balance, undefined);
   assert.equal(body.boundWallet, undefined);
   assert.equal(body.caps, undefined);
+  // the PUBLIC {deposit: {address, minimum, gateThreshold}} block is merged
+  // by the deposits router when attachDeposits() ran — this boot() composes
+  // the bare token router only, so no deposit block here (the composed-app
+  // public subset is covered in token-deposits.test.js).
   assert.equal(body.deposit, undefined);
 });
 

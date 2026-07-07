@@ -1,5 +1,5 @@
 name: MuchuBridge
-version: 1.1.0
+version: 1.2.0
 main: com.muchucraft.bridge.MuchuBridgePlugin
 api-version: '1.21'
 depend: [Vault]

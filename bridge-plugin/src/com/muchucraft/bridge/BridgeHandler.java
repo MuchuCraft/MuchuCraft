@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
  *   POST /debit  {player, amount, ref} → {ok:true, newBalance} | 409 insufficient
  *   POST /credit {player, amount, ref} → {ok:true, newBalance}
  *   POST /balances {players:[...]}     → {balances:{name:"12.34", ...}}
- *   POST /deposit-info {address, minimum, gateThreshold} → {ok:true}  (powers /deposit)
+ *   POST /deposit-info {address, minimum, gateThreshold, pageUrl?} → {ok:true}  (powers /deposit)
  * Every request needs "Authorization: Bearer BRIDGE_TOKEN" (constant-time compare).
  */
 final class BridgeHandler implements HttpHandler {
@@ -31,6 +31,7 @@ final class BridgeHandler implements HttpHandler {
     private static final Pattern AMOUNT = Pattern.compile("^[0-9]{1,12}(\\.[0-9]{1,6})?$");
     private static final Pattern PLAYER = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
     private static final Pattern ADDRESS = Pattern.compile("^[1-9A-HJ-NP-Za-km-z]{32,44}$"); // base58 pubkey
+    private static final Pattern PAGE_URL = Pattern.compile("^https?://[^\\s\"<>\\\\]{1,300}$"); // deposit web page
 
     private final MuchuBridgePlugin plugin;
     private final EcoOps eco;
@@ -95,7 +96,17 @@ final class BridgeHandler implements HttpHandler {
                 }
                 String minimum = requireAmountString(body.get("minimum"), "minimum");
                 String gateThreshold = requireAmountString(body.get("gateThreshold"), "gateThreshold");
-                deposits.set(address, minimum, gateThreshold);
+                // pageUrl is OPTIONAL (older gateways omit it): when present it must
+                // be a plain http(s) URL — it becomes a clickable open_url line.
+                String pageUrl = null;
+                Object rawPageUrl = body.get("pageUrl");
+                if (rawPageUrl != null) {
+                    if (!(rawPageUrl instanceof String s) || !PAGE_URL.matcher(s).matches()) {
+                        throw new ApiError(400, "pageUrl must be an http(s) URL");
+                    }
+                    pageUrl = s;
+                }
+                deposits.set(address, minimum, gateThreshold, pageUrl);
                 send(ex, 200, Json.write(Map.of("ok", true)));
             }
             default -> throw new ApiError(404, "not found");

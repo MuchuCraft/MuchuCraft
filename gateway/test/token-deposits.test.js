@@ -44,7 +44,12 @@ function baseTokenConfig(extra = {}) {
   };
 }
 
-const DEPOSIT_ENV = { DEPOSIT_MIN: '1', DEPOSIT_GATE_MIN: '25', DEPOSIT_POLL_SECONDS: '20' };
+const DEPOSIT_ENV = {
+  DEPOSIT_MIN: '1',
+  DEPOSIT_GATE_MIN: '25',
+  DEPOSIT_POLL_SECONDS: '20',
+  SIWS_URI: 'https://web.muchu.app/login/', // → pageUrl https://web.muchu.app/deposit
+};
 
 function recordingLog() {
   const rec = { logs: [], warns: [], errors: [] };
@@ -247,10 +252,13 @@ test('loadDepositConfig: env values parsed to raw BigInt, defaults applied', () 
   assert.equal(cfg.gateMin, '25');
   assert.equal(cfg.gateMinRaw, 25n * MUCHU);
   assert.equal(cfg.pollSeconds, 20);
+  assert.equal(cfg.pageUrl, 'https://web.muchu.app/deposit', 'SIWS_URI origin + /deposit');
   const defaults = loadDepositConfig({ decimals: 6 }, {});
   assert.equal(defaults.min, '1');
   assert.equal(defaults.gateMin, '25');
   assert.equal(defaults.pollSeconds, 20);
+  assert.equal(defaults.pageUrl, null, 'no SIWS_URI → no pageUrl');
+  assert.equal(loadDepositConfig({ decimals: 6 }, { SIWS_URI: '::not a url::' }).pageUrl, null);
 });
 
 // ------------------------------------------------------------- parsing + credit
@@ -613,8 +621,34 @@ test('deposit-info push: waits for the resolved address, retries with backoff, t
   const pushed = await watcher.pushDepositInfo();
   assert.equal(pushed, true);
   assert.equal(attempts.length, 3, 'two failures then success');
-  assert.deepEqual(attempts[2], { address: TREASURY_OWNER, minimum: '1', gateThreshold: '25' });
+  assert.deepEqual(attempts[2], {
+    address: TREASURY_OWNER,
+    minimum: '1',
+    gateThreshold: '25',
+    pageUrl: 'https://web.muchu.app/deposit', // SIWS_URI origin + /deposit
+  });
   assert.deepEqual(sleeps, [2000, 4000], 'exponential backoff between attempts');
+});
+
+test('deposit-info push omits pageUrl when SIWS_URI is unset', async (t) => {
+  const database = new DatabaseSync(':memory:');
+  t.after(() => { try { database.close(); } catch { /* closed */ } });
+  const pushed = [];
+  const watcher = createDepositWatcher({
+    store: createDepositStore({ database }),
+    ledger: createLedger({ database }),
+    bridge: mockBridge(),
+    tokenConfig: baseTokenConfig(),
+    depositConfig: loadDepositConfig({ decimals: 6 }, { ...DEPOSIT_ENV, SIWS_URI: undefined }),
+    rpc: mockRpc(),
+    resolveTreasury: async () => ({ ownerAddress: TREASURY_OWNER, ataAddress: TREASURY_ATA }),
+    postDepositInfo: async (body) => { pushed.push(body); },
+    log: recordingLog(),
+    sleep: async () => {},
+  });
+  await watcher.tick();
+  assert.equal(await watcher.pushDepositInfo(), true);
+  assert.deepEqual(pushed, [{ address: TREASURY_OWNER, minimum: '1', gateThreshold: '25' }]);
 });
 
 // ------------------------------------------------------------- routes (attachDeposits)
@@ -727,8 +761,26 @@ test('GET /api/token/status gains the deposit block (address, minimum, gate)', a
   assert.deepEqual(body.deposit, {
     address: TREASURY_OWNER,
     minimum: '1',
+    gateThreshold: '25',
     gate: { threshold: '25', cumulativeRaw: '0', unlocked: false },
   });
+});
+
+test('GET /status with NO Bearer: public subset gains the PUBLIC deposit block (no gate)', async (t) => {
+  const { base, deposits } = await bootApp(t);
+  await deposits.watcher.tick(); // resolves the treasury → deposit address known
+  const { status, body } = await get(base, '/api/token/status');
+  assert.equal(status, 200);
+  assert.equal(body.cluster, 'devnet');
+  assert.equal(body.mint, MINT);
+  // the deposit address is public by design — players share it; the /deposit
+  // page renders from exactly this subset
+  assert.deepEqual(body.deposit, { address: TREASURY_OWNER, minimum: '1', gateThreshold: '25' });
+  // session-scoped fields must stay session-scoped
+  assert.equal(body.balance, undefined);
+  assert.equal(body.boundWallet, undefined);
+  assert.equal(body.caps, undefined);
+  assert.equal(body.deposit.gate, undefined);
 });
 
 test('deposit block gate flips once cumulative credited deposits reach the threshold', async (t) => {

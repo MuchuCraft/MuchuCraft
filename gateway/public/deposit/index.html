@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0b0d">
+  <title>Deposit MUCHU — MuchuCraft</title>
+  <link rel="icon" type="image/png" href="./muchu.png">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="card">
+    <header class="head">
+      <div>
+        <h1 class="title">Deposit <span class="title-accent">MUCHU</span></h1>
+        <p class="tagline">Top up your in-game balance from your bound wallet</p>
+      </div>
+      <span id="cluster-badge" class="cluster-badge hidden"></span>
+    </header>
+
+    <p id="cluster-note" class="muted small cluster-note hidden">
+      MuchuCraft is in beta on Solana <strong>devnet</strong> — deposits use devnet MUCHU, not mainnet funds.
+    </p>
+
+    <div id="load-error" class="error hidden" role="alert"></div>
+
+    <section id="content" class="hidden">
+      <!-- treasury deposit address -->
+      <h2 class="section-title">Treasury deposit address</h2>
+      <div class="address-row">
+        <code id="deposit-address" class="address-value">—</code>
+        <button id="copy-address" type="button" class="btn-copy" data-copied="Copied">Copy</button>
+      </div>
+
+      <!-- prominent warning -->
+      <div class="warning" role="alert">
+        Send only from the wallet that owns your username — other sources are not credited automatically.
+      </div>
+
+      <!-- QR: Solana Pay URI -->
+      <div class="qr-block">
+        <div id="qr" class="qr-tile" aria-label="Deposit QR code"></div>
+        <p class="muted small qr-caption">
+          Scan with a Solana wallet — the transfer is prefilled
+          (<a id="qr-uri-link" href="#" rel="noopener">Solana&nbsp;Pay</a>).
+        </p>
+      </div>
+
+      <!-- limits -->
+      <div class="limits">
+        <div class="limit-cell">
+          <p class="limit-label">Minimum deposit</p>
+          <p class="limit-value"><span id="deposit-min">—</span> MUCHU</p>
+        </div>
+        <div class="limit-cell">
+          <p class="limit-label">Earn-gate threshold</p>
+          <p class="limit-value"><span id="gate-threshold">—</span> MUCHU</p>
+        </div>
+      </div>
+      <p class="muted small">
+        Deposits below the minimum are not credited. Deposit the earn-gate total to unlock every job.
+      </p>
+
+      <!-- token mint, for verification only -->
+      <h2 class="section-title mint-title">Token mint — for verification, do not send funds here</h2>
+      <div class="address-row">
+        <code id="mint-address" class="address-value">—</code>
+        <button id="copy-mint" type="button" class="btn-copy" data-copied="Copied">Copy</button>
+      </div>
+
+      <!-- session-scoped: shown only with a valid launcher session -->
+      <section id="me" class="me hidden" aria-label="Your deposit progress">
+        <h2 class="section-title">Your progress</h2>
+        <div class="me-row">
+          <p class="limit-label">Bound wallet</p>
+          <code id="me-wallet" class="address-value me-wallet"></code>
+        </div>
+        <div class="me-row">
+          <p class="limit-label">Earn gate</p>
+          <p id="me-gate" class="me-gate"></p>
+        </div>
+        <div class="meter" role="presentation"><div id="me-meter-fill" class="meter-fill"></div></div>
+      </section>
+    </section>
+
+    <footer class="footer">
+      <a href="/login/">MuchuCraft launcher</a>
+      <span class="footer-sep">·</span>
+      <span>Deposits are matched by source address and credited within about a minute.</span>
+    </footer>
+  </main>
+
+  <script src="./qrcode.js"></script>
+  <script src="./deposit.js" defer></script>
+</body>
+</html>

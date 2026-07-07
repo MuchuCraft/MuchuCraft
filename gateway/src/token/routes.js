@@ -77,9 +77,12 @@ export function createTokenRoutes({ db, ledger, bridge, worker, tokenConfig }) {
 
   // Every token route needs a valid wallet-backed session — except that a
   // GET /status carrying NO Bearer at all answers with a PUBLIC subset
-  // (cluster + mint only: no balances, wallets, or caps) so the landing page
-  // can render its honest "devnet beta" badge (SPEC-PHASE3 §3). A presented
-  // but invalid/expired token still 401s (the launcher relies on that).
+  // (cluster + mint: no balances, wallets, or caps) so the landing page can
+  // render its honest "devnet beta" badge (SPEC-PHASE3 §3). When deposits are
+  // attached, their router additionally merges the public {deposit: {address,
+  // minimum, gateThreshold}} block into this subset for the /deposit page
+  // (see deposits.js createDepositRoutes). A presented but invalid/expired
+  // token still 401s (the launcher relies on that).
   router.use((req, res, next) => {
     const token = bearerToken(req);
     const info = token ? db.getSessionInfo(token) : null;

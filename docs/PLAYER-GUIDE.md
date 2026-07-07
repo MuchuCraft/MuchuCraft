@@ -22,6 +22,8 @@ everything you earn in-game is **MUCHU** — a real token you can cash out.
 | `/rules` and `/motd` | House rules + the quick command cheat-sheet. |
 | `/jobs join Builder` | Start earning MUCHU immediately (see below). |
 | Walk out of the spawn plaza | The plaza is protected — you cannot build there. The wilderness is all yours. |
+| Step the **ADVENTURE** plate | Out the south gate, down the grand stair: a quartz pad with a black pressure plate. Step on it and you are teleported somewhere wild, 200-2400 blocks out (same as typing `/tpr`). |
+| `/kit daily` | Free supplies, once every 24 h: 16 steak, 32 torches, 16 arrows, 1 golden apple. |
 | `/sethome` at your first base | So `/home` can always bring you back. |
 
 ## 3. Earning MUCHU
@@ -55,11 +57,20 @@ everything you earn in-game is **MUCHU** — a real token you can cash out.
   depositors get **5**.
 - `/home [name]` — teleport back. `/delhome <name>` removes one.
 - `/spawn` — return to the spawn plaza.
+- **Adventure plate** — south gate, at the bottom of the grand stair: step on
+  the black pressure plate and the server drops you somewhere wild, 200-2400
+  blocks from spawn. `/tpr` in chat does the same from anywhere
+  (60 second cooldown). Set a home before you wander off.
+- `/back` — return to where you last teleported from — **and to where you
+  died**. Died far from home? `/back` takes you straight to your stuff.
 - `/tpa <player>` — ask to teleport to a friend; they answer with
   `/tpaccept` or `/tpdeny` (`/tpacancel` to withdraw the request).
 - Teleports have a **3 second warm-up** (do not move, do not take damage) and
-  a **30 second cooldown** — no combat escapes, no teleport spam.
-- Respawning takes you to spawn unless you have slept in a bed.
+  a **30 second cooldown** (60 s for `/tpr`) — no combat escapes, no teleport
+  spam.
+- `/compass` and `/getpos` — bearing and exact coordinates when you are lost.
+- Respawning takes you to spawn unless you have slept in a bed. Nights skip
+  when just **30%** of online players sleep — one bed helps everyone.
 
 ## 6. Protecting your builds (claims)
 
@@ -81,6 +92,8 @@ everything you earn in-game is **MUCHU** — a real token you can cash out.
   <player>` mutes a pest.
 - `/mail send <player> <text>` — offline messages; read with `/mail read`.
 - `/pay <player> <amount>` — send MUCHU in-game.
+- `/shop` — the server shop: buy and sell goods for MUCHU in a menu.
+  Shop trades (like `/pay`) are not part of the daily jobs cap.
 - `/balance` (`/bal`) — your MUCHU; `/balancetop` — the leaderboard.
 - `/afk` — flag yourself away.
 
@@ -89,12 +102,17 @@ everything you earn in-game is **MUCHU** — a real token you can cash out.
 | Command | What it does |
 |---|---|
 | `/kit starter` | One-time starter kit + welcome book |
+| `/kit daily` | Daily supplies (steak, torches, arrows, golden apple) |
 | `/jobs join Builder` / `/jobs stats` | Earn MUCHU |
 | `/deposit` | Deposit address for topping up |
+| `/shop` | Server shop — buy & sell for MUCHU |
 | `/balance`, `/balancetop`, `/pay` | MUCHU money |
 | `/sethome`, `/home`, `/delhome` | Homes (2, depositors 5) |
 | `/spawn`, `/warp` | Get around |
+| `/tpr` (or the spawn **ADVENTURE** plate) | Random teleport into the wild |
+| `/back` | Return to last teleport spot — or your death point |
 | `/tpa`, `/tpaccept`, `/tpdeny`, `/tpacancel` | Teleport to friends |
+| `/compass`, `/getpos` | Bearing & coordinates |
 | `/msg`, `/r`, `/mail`, `/ignore` | Chat & mail |
 | `/rules`, `/motd`, `/help`, `/afk` | Info & status |
 | golden shovel, `/trust`, `/abandonclaim`, `/claimslist` | Land claims |
@@ -111,5 +129,21 @@ everything you earn in-game is **MUCHU** — a real token you can cash out.
 - World pregeneration (SPEC-PHASE4 §4): Chunky, center 0 0, radius 3000
   blocks. Check with RCON `chunky progress`; it resumes across restarts.
   Expect roughly 2-6 GB of world data when complete.
-- `/spawn` requires the EssentialsXSpawn module; the `essentials.spawn`
-  permission is already granted so it works the moment the jar is installed.
+- `/spawn` is served by the EssentialsXSpawn module (EssentialsXSpawn-2.22.0
+  jar, installed); the `essentials.spawn` permission is granted to default.
+- The **Adventure plate** is a hidden impulse command block (command:
+  `spreadplayers 0 0 200 2400 false @p[distance=..5]`) one block under the
+  plate's support at (-2,109,30), built + wiring-verified by
+  `scripts/build-spawn.mjs`. Dependencies: gamerule `command_blocks_work`
+  true (the 1.21.11 replacement for the REMOVED `enable-command-block`
+  server.properties key — the gamerule persists in level.dat) and WorldGuard
+  `spawn` region flag `use: allow` (players cannot press plates in the
+  protected region without it). CAUTION: `scripts/protect-spawn.sh` writes a
+  canonical flag set that does NOT include `use: allow` — re-set the flag
+  (`rg flag -w world spawn use allow`) if that script is ever re-run.
+- `/tpr` is core EssentialsX 2.22.0 (no addon): ranges/center live in
+  `plugins/Essentials/tpr.yml` (min 200 / max 2400 around 0,0); the 60 s
+  cooldown is the regex `command-cooldowns` entry in Essentials config.yml.
+  The daily kit is `plugins/Essentials/kits.yml` (`essentials.kits.daily`).
+- Gamerule `players_sleeping_percentage` is 30 (set live; also asserted by
+  `scripts/build-spawn.mjs` for fresh installs).

@@ -124,6 +124,7 @@ export function createApp({ config, db, netProxy = null, tokenRoutes = null, lim
 
   // --- static -------------------------------------------------------------
   const loginDir = path.join(config.root, 'gateway', 'public', 'login');
+  const depositDir = path.join(config.root, 'gateway', 'public', 'deposit');
   const clientDist = path.join(config.root, 'client', 'dist');
   if (!fs.existsSync(clientDist)) {
     console.warn(`[gateway] client dist missing at ${clientDist} — build the client bundle; serving login page only`);
@@ -151,6 +152,15 @@ export function createApp({ config, db, netProxy = null, tokenRoutes = null, lim
   });
 
   app.use('/login', express.static(loginDir));
+  // Deposit page (QR + treasury address). Bare /deposit canonicalizes to
+  // /deposit/ so the page's relative asset URLs resolve inside the mount
+  // (non-strict routing matches '/deposit/' here too — hence the guard,
+  // which avoids a redirect loop).
+  app.get('/deposit', (req, res, next) => {
+    if (req.path.endsWith('/')) return next();
+    res.redirect(301, '/deposit/');
+  });
+  app.use('/deposit', express.static(depositDir));
   app.use(express.static(clientDist));
 
   return { app };

@@ -66,9 +66,26 @@ export function loadDepositConfig(tokenConfig, env = process.env) {
     min,
     gateMin,
     pollSeconds,
+    pageUrl: depositPageUrl(env.SIWS_URI),
     minRaw: parseAmountToRaw(min, tokenConfig.decimals),
     gateMinRaw: parseAmountToRaw(gateMin, tokenConfig.decimals),
   };
+}
+
+/**
+ * Public /deposit page URL, derived from SIWS_URI's origin (SIWS_URI is the
+ * launcher URL, e.g. https://web.muchu.app/login/ → https://web.muchu.app/deposit).
+ * null when SIWS_URI is unset/unparseable — the push then omits pageUrl and
+ * the in-game /deposit command simply skips its "open the page" line.
+ */
+function depositPageUrl(siwsUri) {
+  if (!siwsUri) return null;
+  try {
+    const origin = new URL(siwsUri).origin;
+    return origin && origin !== 'null' ? `${origin}/deposit` : null;
+  } catch {
+    return null;
+  }
 }
 
 function toInt(value, fallback) {
@@ -466,10 +483,12 @@ export function createDepositWatcher({
   }
 
   /**
-   * Push {address, minimum, gateThreshold} to the bridge so /deposit works
-   * in-game. Retries with exponential backoff until it lands (bridge routinely
-   * comes up after the gateway) — all three values are env-derived, so "on
-   * change" means "on (re)boot"; one successful push per start() suffices.
+   * Push {address, minimum, gateThreshold, pageUrl} to the bridge so /deposit
+   * works in-game (pageUrl powers its clickable "open the deposit page" line;
+   * omitted when SIWS_URI is unset). Retries with exponential backoff until it
+   * lands (bridge routinely comes up after the gateway) — all values are
+   * env-derived, so "on change" means "on (re)boot"; one successful push per
+   * start() suffices.
    * @returns {Promise<boolean>} true once pushed, false if stopped first
    */
   async function pushDepositInfo() {
@@ -477,7 +496,12 @@ export function createDepositWatcher({
     while (!stopped) {
       const addr = depositAddress();
       if (addr) {
-        const body = { address: addr, minimum: depositConfig.min, gateThreshold: depositConfig.gateMin };
+        const body = {
+          address: addr,
+          minimum: depositConfig.min,
+          gateThreshold: depositConfig.gateMin,
+          ...(depositConfig.pageUrl ? { pageUrl: depositConfig.pageUrl } : {}),
+        };
         try {
           await (postDepositInfo ?? defaultPostDepositInfo)(body);
           infoPushed = true;
@@ -728,21 +752,24 @@ export function createDepositRoutes({ db, store, tokenConfig, depositConfig, get
 
   // GET /status is answered by the token router mounted after this one; wrap
   // res.json so successful bodies gain the deposit block (401s untouched).
+  // The block's {address, minimum, gateThreshold} are PUBLIC by design —
+  // players share the treasury deposit address, and the unauthenticated
+  // status subset feeds the /deposit page — while the per-user `gate`
+  // progress stays session-scoped.
   router.get('/status', (req, res, next) => {
     const original = res.json.bind(res);
     res.json = (body) => {
       if (res.statusCode < 400 && body && typeof body === 'object' && !Array.isArray(body)) {
         const session = bearerSession(db, req);
-        if (session) {
-          body = {
-            ...body,
-            deposit: {
-              address: getDepositAddress(),
-              minimum: depositConfig.min,
-              gate: gateFor(session.userId),
-            },
-          };
-        }
+        body = {
+          ...body,
+          deposit: {
+            address: getDepositAddress(),
+            minimum: depositConfig.min,
+            gateThreshold: depositConfig.gateMin,
+            ...(session ? { gate: gateFor(session.userId) } : {}),
+          },
+        };
       }
       return original(body);
     };

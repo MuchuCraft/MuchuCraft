@@ -91,6 +91,18 @@ const DEFAULT_NODES = [
   'essentials.warp',                      // /warp
   'essentials.warp.list',                 // /warp with no args lists warps
   'essentials.ignore',                    // /ignore
+  // --- survival QoL batch (adventure pad / tpr / daily kit / shop) -------
+  'essentials.tpr',                       // /tpr — random teleport (core in 2.22.0:
+                                          // plugin.yml declares tpr/settpr; no addon)
+  'essentials.back',                      // /back — return to previous location
+  'essentials.back.ondeath',              // /back also works to your death point
+  'essentials.compass',                   // /compass — bearing readout
+  'essentials.getpos',                    // /getpos — coordinates readout
+  'essentials.kits.daily',                // the repeatable daily kit (kits.yml)
+  // EconomyShopGUI /shop — node from EconomyShopGUI-7.1.1.jar plugin.yml
+  // ("EconomyShopGUI.shop", default: true). Granted explicitly so the shop
+  // survives any future default-permission tightening; LuckPerms lowercases.
+  'economyshopgui.shop',
 ];
 // Extra nodes for the `depositor` group (inherits default; weight handled by
 // scripts/lp-bootstrap.sh). 5 homes per config sethome-multiple.depositor.
