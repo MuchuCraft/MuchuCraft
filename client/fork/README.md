@@ -44,10 +44,13 @@ consistently while faster machines render fine.
 The fix (search `MuchuCraft` in the file): buffer every non-`mesherData`
 message until `allDataReady`, then replay in order.
 
-**Not applied in our build.** `minecraft-renderer` ships `src` + `dist` but NOT
-its worker build config, and rebuilding the worker ourselves is unsafe:
-esbuild without the original externals bundles all of minecraft-data (~259 MB),
-and a runtime `self.onmessage` wrapper broke the batched message protocol
-(`o.reduce is not a function`). The correct path is to land this patch upstream
-(zardoy/minecraft-web-client → minecraft-renderer) where it can be built
-properly. Mitigated meanwhile by lower view-distance (fewer columns racing).
+**APPLIED.** `minecraft-renderer` ships `src`+`dist` but not its worker build
+scripts, so we vendor them from github.com/zardoy/minecraft-renderer
+(`mesher-build-scripts/`) — they externalize minecraft-data (avoiding a 259 MB
+bundle) and handle the wasm import. `build-fork.sh` overlays the patched
+worker source, runs `buildMesherWorker.mjs` to rebuild `dist/mesherWasm.js`,
+and rsbuild copies it. The gate buffers only wasm-dependent terrain messages
+(`chunk`/`dirty`/`blockUpdate`/`setRawMapChunk`) until `allDataReady`, so init
+messages still flow. Verified: 5/5 concurrent loads rendered, 0 __wbindgen_malloc
+errors, gate drained buffered chunks on every load (an earlier attempt that
+buffered ALL non-mesherData messages stalled init — only terrain types are gated).

@@ -123,9 +123,10 @@ let dirtySections = new Map<string, number>()
 // main thread, even though a full-column WASM call may generate more data.
 const requestTracker = new SectionRequestTracker()
 let allDataReady = false
-// MuchuCraft: messages that arrive before the WASM instance is ready are held
-// here and replayed once initWasm resolves (see handleMessage / 'mesherData').
+// MuchuCraft: wasm-dependent terrain messages that arrive before the WASM
+// instance is ready are held here and replayed once initWasm resolves.
 let pendingUntilReady: any[] = []
+const WASM_DEPENDENT_TYPES = new Set(['chunk', 'dirty', 'blockUpdate', 'setRawMapChunk'])
 
 function sectionKey(x: number, y: number, z: number) {
   return `${x},${y},${z}`
@@ -686,12 +687,13 @@ const handleMessage = async (data: any) => {
   const globalVar: any = globalThis
 
   // MuchuCraft fix (stars/xray on slower machines): the WASM instance is only
-  // usable after 'mesherData' → initWasm() awaits wasm.default(). Any chunk /
-  // geometry / dirty message that drains during that await would call the
-  // mesher before its instance exists → `undefined.__wbindgen_malloc` → the
-  // chunk never meshes. Buffer everything except 'mesherData' until ready and
-  // replay it in order. ('mesherData' must always run — it triggers initWasm.)
-  if (data.type !== 'mesherData' && !allDataReady) {
+  // usable after 'mesherData' → initWasm() awaits wasm.default(). Terrain
+  // messages that drain during that await call the mesher before its instance
+  // exists → `undefined.__wbindgen_malloc` → the column never meshes. Buffer
+  // ONLY the wasm-dependent terrain messages until ready, then replay in order.
+  // Init/control messages (mesherData, mcData, config, reset, unloadChunk) must
+  // pass through so the instance actually gets set up.
+  if (!allDataReady && WASM_DEPENDENT_TYPES.has(data.type)) {
     pendingUntilReady.push(data)
     return
   }

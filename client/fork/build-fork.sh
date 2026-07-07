@@ -29,6 +29,24 @@ cp "$HERE/sharedConnectorSetup.patched.ts" src/react/inventory/sharedConnectorSe
 # from rendering as raw NBT JSON or being replaced by the icon item name.
 cp "$HERE/items.patched.ts" src/mineflayer/items.ts
 
+# Mesher WASM-readiness gate (fixes stars/xray on slower machines): the mesher
+# worker processed chunk columns before its WASM instantiated. The patched
+# worker buffers wasm-dependent terrain messages until ready. The
+# minecraft-renderer npm package ships src+dist but NOT its worker build
+# scripts, so we vendor them (from github.com/zardoy/minecraft-renderer) and
+# rebuild dist/mesherWasm.js in place; the rsbuild below then copies it.
+MR="node_modules/minecraft-renderer"
+if [ -d "$MR/src/wasm-mesher/worker" ]; then
+  cp "$HERE/mesherWasm.worker.patched.ts" "$MR/src/wasm-mesher/worker/mesherWasm.ts"
+  mkdir -p "$MR/scripts" "$MR/src/lib"
+  cp "$HERE/mesher-build-scripts/buildMesherWorker.mjs" "$MR/scripts/"
+  cp "$HERE/mesher-build-scripts/buildWorkerShared.mjs" "$MR/scripts/"
+  cp "$HERE/mesher-build-scripts/esbuildDataPlugin.mjs" "$MR/scripts/"
+  cp "$HERE/mesher-build-scripts/buildSharedConfig.mjs" "$MR/src/lib/"
+  echo "[fork] rebuilding mesher worker with WASM-readiness gate"
+  ( cd "$MR" && node scripts/buildMesherWorker.mjs )
+fi
+
 echo "[fork] building (rsbuild)"
 pnpm build
 
