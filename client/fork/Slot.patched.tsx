@@ -152,17 +152,20 @@ export function Slot({
   }, [activeNumberKey, isHovered, index, sendAction, isMobile, disableFocusSwap])
 
   const handleMouseEnter = useCallback((e: React.MouseEvent) => {
-    if (isMobile) return
+    // MuchuCraft: show hover tooltips for real mouse pointers even on
+    // touch-capable devices (touchscreen laptops); only skip the synthetic
+    // mouseenter that follows a tap.
+    if (isSyntheticMouse()) return
     setHoveredSlot(index)
     setShowTooltip(true)
     if (isDragging) addDragSlot(index)
-  }, [isMobile, index, setHoveredSlot, isDragging, addDragSlot])
+  }, [index, setHoveredSlot, isDragging, addDragSlot])
 
   const handleMouseLeave = useCallback(() => {
-    if (isMobile) return
+    if (isSyntheticMouse()) return
     setHoveredSlot(null)
     setShowTooltip(false)
-  }, [isMobile, setHoveredSlot])
+  }, [setHoveredSlot])
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -475,7 +478,7 @@ export function Slot({
         highlighted && styles.highlighted,
         disabled && styles.disabled,
         resultSlot && styles.resultSlot,
-        isHovered && !isMobile && styles.hovered,
+        isHovered && styles.hovered, /* MuchuCraft: hoveredSlot is set only for real mouse now */
         isDragTarget && styles.dragTarget,
         className,
       ]
