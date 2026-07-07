@@ -22,6 +22,9 @@ pnpm install
 
 echo "[fork] applying MuchuCraft inventory drag-to-move patch"
 cp "$HERE/Slot.patched.tsx" node_modules/minecraft-inventory/src/components/Slot/Slot.tsx
+# Client-source patch: sanitize item names/lore so raw NBT-component JSON never
+# shows in tooltips (ViaBackwards delivers 1.20.5+ component names flat() can't parse).
+cp "$HERE/sharedConnectorSetup.patched.ts" src/react/inventory/sharedConnectorSetup.ts
 
 echo "[fork] building (rsbuild)"
 pnpm build

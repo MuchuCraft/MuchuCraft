@@ -108,9 +108,7 @@ final class DepositInfo implements CommandExecutor {
         sender.sendMessage(Component.text(current.address(), NamedTextColor.GREEN));
         sender.sendMessage(Component.text("Minimum ", NamedTextColor.GRAY)
                 .append(Component.text(current.minimum() + " MUCHU", NamedTextColor.WHITE))
-                .append(Component.text(". Deposit ", NamedTextColor.GRAY))
-                .append(Component.text(current.gateThreshold() + " MUCHU", NamedTextColor.WHITE))
-                .append(Component.text(" in total to unlock every job.", NamedTextColor.GRAY)));
+                .append(Component.text(". Send only from your bound wallet.", NamedTextColor.GRAY)));
         if (current.pageUrl() != null) {
             sender.sendMessage(Component.text("Open the deposit page — QR & details", NamedTextColor.LIGHT_PURPLE)
                     .decorate(TextDecoration.UNDERLINED)

@@ -138,7 +138,6 @@
     $('deposit-address').textContent = deposit.address;
     $('mint-address').textContent = mint || '(mint unknown)';
     $('deposit-min').textContent = deposit.minimum || '—';
-    $('gate-threshold').textContent = deposit.gateThreshold || '—';
 
     const uri = solanaPayUri(deposit.address, mint);
     try {
@@ -154,24 +153,12 @@
   }
 
   function renderMine(status) {
-    const gate = status && status.deposit && status.deposit.gate;
-    if (!gate) return;
-    const decimals = Number.isInteger(status.decimals) ? status.decimals : DEFAULT_DECIMALS;
-    const cumulative = formatRaw(gate.cumulativeRaw, decimals) ?? '0';
-    const threshold = gate.threshold || status.deposit.gateThreshold || '—';
-
-    if (status.boundWallet) $('me-wallet').textContent = status.boundWallet;
-    const gateEl = $('me-gate');
-    gateEl.textContent = cumulative + ' / ' + threshold + ' MUCHU deposited';
-    if (gate.unlocked) {
-      const mark = document.createElement('span');
-      mark.className = 'unlocked';
-      mark.textContent = ' — unlocked';
-      gateEl.appendChild(mark);
+    // Show the player's bound wallet (the only address deposits are credited
+    // from). Earn-gate progress was removed — everyone earns without depositing.
+    if (status && status.boundWallet) {
+      $('me-wallet').textContent = status.boundWallet;
+      $('me').classList.remove('hidden');
     }
-    $('me-meter-fill').style.width =
-      (gate.unlocked ? 100 : progressPct(gate.cumulativeRaw, threshold, decimals)) + '%';
-    $('me').classList.remove('hidden');
   }
 
   // ---------- boot -----------------------------------------------------------

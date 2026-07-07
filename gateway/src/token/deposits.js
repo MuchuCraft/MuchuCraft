@@ -38,7 +38,7 @@ import * as splToken from '@solana-program/token';
 import * as splToken2022 from '@solana-program/token-2022';
 import { formatRawAmount, parseAmountToRaw } from './ledger.js';
 import { createBridgeClient } from './bridge-client.js';
-import { loadTreasury, TOKEN_2022_PROGRAM_ADDRESS } from './solana.js';
+import { loadTreasury, TOKEN_2022_PROGRAM_ADDRESS, TOKEN_PROGRAM_ADDRESS } from './solana.js';
 
 export const DEPOSIT_STATES = ['credited', 'unmatched', 'dust', 'pending_retry'];
 
@@ -433,14 +433,24 @@ export function createDepositWatcher({
     if (!tokenConfig.mint) throw new DepositError('MUCHU_MINT is not configured');
     const signer = await loadTreasury(tokenConfig.treasuryKeypairPath);
     const ownerAddress = String(signer.address);
-    let res;
-    try {
-      res = await rpc.getAccountInfo(address(tokenConfig.mint), { encoding: 'base64' }).send();
-    } catch (err) {
-      throw new DepositError(`getAccountInfo(mint) failed: ${err?.message ?? err}`, 'RPC_UNAVAILABLE');
+    // Prefer the configured SPL program (token | token-2022): the owner address
+    // and ATA are deterministic from the keypair + mint + program, so the
+    // deposit address and in-game /withdraw link resolve BEFORE the mint is
+    // even created. Only fall back to on-chain detection when unconfigured.
+    let programAddress;
+    if (tokenConfig.tokenProgram) {
+      programAddress = tokenConfig.tokenProgram === 'token-2022'
+        ? String(TOKEN_2022_PROGRAM_ADDRESS) : String(TOKEN_PROGRAM_ADDRESS);
+    } else {
+      let res;
+      try {
+        res = await rpc.getAccountInfo(address(tokenConfig.mint), { encoding: 'base64' }).send();
+      } catch (err) {
+        throw new DepositError(`getAccountInfo(mint) failed: ${err?.message ?? err}`, 'RPC_UNAVAILABLE');
+      }
+      if (!res?.value) throw new DepositError(`mint ${tokenConfig.mint} not found on-chain`);
+      programAddress = String(res.value.owner);
     }
-    if (!res?.value) throw new DepositError(`mint ${tokenConfig.mint} not found on-chain`);
-    const programAddress = String(res.value.owner);
     const mod = programAddress === String(TOKEN_2022_PROGRAM_ADDRESS) ? splToken2022 : splToken;
     const [ata] = await mod.findAssociatedTokenPda({
       owner: address(ownerAddress),

@@ -443,8 +443,7 @@ function phaseDisplays() {
     C(' — the wilderness is yours', PALE),
   ], 1.0));
   cmds.push(textDisplay(0.5, 119.4, 0.5, [
-    C('MUCHU is live on ', PALE), C('DEVNET', GREEN, true),
-    C(' · migrating to ', PALE), C('MAINNET', PURPLE, true),
+    C('$MUCHU is live on ', PALE), C('MAINNET', GREEN, true),
   ], 0.8));
   // adventure pad marker (south path; PAD center block +0.5 each axis)
   cmds.push(textDisplay(PAD.x + 0.5, PAD.y + 3.4, PAD.z + 0.5, [

@@ -53,13 +53,10 @@
           <p class="limit-label">Minimum deposit</p>
           <p class="limit-value"><span id="deposit-min">—</span> MUCHU</p>
         </div>
-        <div class="limit-cell">
-          <p class="limit-label">Earn-gate threshold</p>
-          <p class="limit-value"><span id="gate-threshold">—</span> MUCHU</p>
-        </div>
       </div>
       <p class="muted small">
-        Deposits below the minimum are not credited. Deposit the earn-gate total to unlock every job.
+        Tops up your in-game MUCHU balance. Send only from your bound wallet — deposits from
+        other wallets are not credited. Amounts below the minimum are ignored.
       </p>
 
       <!-- token mint, for verification only -->
@@ -70,17 +67,11 @@
       </div>
 
       <!-- session-scoped: shown only with a valid launcher session -->
-      <section id="me" class="me hidden" aria-label="Your deposit progress">
-        <h2 class="section-title">Your progress</h2>
+      <section id="me" class="me hidden" aria-label="Your bound wallet">
+        <h2 class="section-title">Your bound wallet</h2>
         <div class="me-row">
-          <p class="limit-label">Bound wallet</p>
           <code id="me-wallet" class="address-value me-wallet"></code>
         </div>
-        <div class="me-row">
-          <p class="limit-label">Earn gate</p>
-          <p id="me-gate" class="me-gate"></p>
-        </div>
-        <div class="meter" role="presentation"><div id="me-meter-fill" class="meter-fill"></div></div>
       </section>
     </section>
 
