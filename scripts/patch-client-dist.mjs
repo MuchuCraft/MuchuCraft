@@ -84,6 +84,42 @@ const GUARD = `// MuchuCraft pointer-lock guard — see scripts/patch-client-dis
 
 fs.writeFileSync(path.join(dist, 'muchu-guard.js'), GUARD);
 
+// ---- Self-destructing service worker (kill-switch) -------------------------
+// The client shipped a caching service worker. Players who registered it
+// before we disabled registration keep a STALE SW that intercepts requests —
+// including the mesher's /wasm_mesher_bg.wasm fetch, which isn't in its
+// precache, so it returns the SPA fallback (HTML) and WebAssembly.compile
+// fails ("HTTP status code is not ok") → the world never meshes (blue void).
+// The guard can't fix that when the SW serves a cached page (guard never
+// runs). So we REPLACE service-worker.js at its own URL with one that, on
+// activate, clears all caches, unregisters itself, and reloads clients. The
+// browser revalidates the SW script on navigation (served max-age=0), installs
+// this byte-different version, and it self-destructs — no user action needed.
+const KILL_SW = `// MuchuCraft kill-switch service worker (replaces the old caching SW).
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    try { const keys = await caches.keys(); await Promise.all(keys.map((k) => caches.delete(k))); } catch (e) {}
+    try { await self.registration.unregister(); } catch (e) {}
+    try {
+      const cs = await self.clients.matchAll({ type: 'window' });
+      for (const c of cs) { try { c.navigate(c.url); } catch (e) {} }
+    } catch (e) {}
+  })());
+});
+// Never serve from cache — always hit the network.
+self.addEventListener('fetch', () => {});
+`;
+for (const swName of ['service-worker.js', 'sw.js']) {
+  const swPath = path.join(dist, swName);
+  if (fs.existsSync(swPath)) {
+    fs.writeFileSync(swPath, KILL_SW);
+    const map = swPath + '.map';
+    if (fs.existsSync(map)) fs.rmSync(map);
+    console.log(`[patch-client] ${swName} replaced with self-destructing kill-switch`);
+  }
+}
+
 const indexPath = path.join(dist, 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
 if (!html.includes('muchu-guard.js')) {
