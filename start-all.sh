@@ -33,6 +33,9 @@ mkdir -p server/plugins/MuchuBridge
 } > server/plugins/MuchuBridge/config.yml
 chmod 600 server/plugins/MuchuBridge/config.yml
 
+# --- relax per-IP limits (all players proxy from 127.0.0.1) ---
+bash scripts/harden-proxy-config.sh || true
+
 # --- world datapacks (committed under server/datapacks/) ---
 mkdir -p server/world/datapacks
 cp -r server/datapacks/. server/world/datapacks/ 2>/dev/null || true
