@@ -42,29 +42,6 @@ const GUARD = `// MuchuCraft pointer-lock guard — see scripts/patch-client-dis
     return orig.apply(this, args);
   };
 
-  // ---- Inventory hint ------------------------------------------------------
-  // The client uses vanilla item handling: LEFT-CLICK a slot to lift the
-  // stack onto the cursor, LEFT-CLICK a destination to drop it (there is no
-  // press-and-hold drag). Web players instinctively try to drag, so show a
-  // one-line hint whenever an inventory/container window is open.
-  let hintEl = null;
-  const ensureHint = () => {
-    if (hintEl) return hintEl;
-    hintEl = document.createElement('div');
-    hintEl.textContent = 'Click an item to pick it up, then click a slot to place it';
-    Object.assign(hintEl.style, {
-      position: 'fixed', left: '50%', bottom: '18px', transform: 'translateX(-50%)',
-      zIndex: '2147483647', pointerEvents: 'none', font: '13px system-ui, sans-serif',
-      color: '#efece6', background: 'rgba(11,11,13,0.82)', border: '1px solid #b7a4ea',
-      borderRadius: '6px', padding: '6px 12px', whiteSpace: 'nowrap',
-    });
-    document.body.appendChild(hintEl);
-    return hintEl;
-  };
-  setInterval(() => {
-    const el = ensureHint();
-    el.style.display = guiOpen() ? 'block' : 'none';
-  }, 400);
 })();
 
 // ---- Fresh-code guarantee --------------------------------------------------
