@@ -15,6 +15,15 @@ import styles from './Slot.module.css'
  * so the destination slot's mouseUp can read the source slot's mouseDown. */
 let emptyHandMove: { fromIndex: number; startX: number; startY: number } | null = null
 
+/** MuchuCraft: hybrid touch+mouse support. Touchscreen laptops report
+ * maxTouchPoints > 0, so useMobile() flags them mobile and the desktop mouse
+ * handlers below used to bail (`if (isMobile) return`) — leaving mouse clicks
+ * dead while only touch worked. We instead let real mouse events through and
+ * suppress only the synthetic mouse events a tap emits (which land within a
+ * few hundred ms of a touch). `lastTouchAt` is shared across slots. */
+let lastTouchAt = 0
+const isSyntheticMouse = () => Date.now() - lastTouchAt < 700
+
 /** Hotbar HUD long-press: first threshold drops one item; hold longer for whole stack. */
 const HOTBAR_LONG_PRESS_DROP_ONE_MS = 420
 const HOTBAR_LONG_PRESS_DROP_ALL_EXTRA_MS = 600
@@ -157,7 +166,7 @@ export function Slot({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (isMobile || disabled) return
+      if (disabled || isSyntheticMouse()) return
       e.preventDefault()
       dragEndedRef.current = false
       const button = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left'
@@ -182,7 +191,7 @@ export function Slot({
 
   const handleMouseUp = useCallback(
     (e: React.MouseEvent) => {
-      if (isMobile || disabled) return
+      if (disabled || isSyntheticMouse()) return
       e.preventDefault()
       e.stopPropagation()
       const button = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left'
@@ -271,7 +280,7 @@ export function Slot({
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
-      if (isMobile || disabled) return
+      if (disabled || isSyntheticMouse()) return
       e.preventDefault()
       cancelDrag()
       if (disableFocusSwap && !onClickOverride) return
@@ -315,6 +324,7 @@ export function Slot({
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      lastTouchAt = Date.now() // MuchuCraft: mark touch so synthetic mouse is ignored
       if (!isMobile) return
       const touch = e.touches[0]
       touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() }
@@ -361,6 +371,7 @@ export function Slot({
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
+      lastTouchAt = Date.now() // MuchuCraft: keep the synthetic-mouse window open past touchend
       cancelLongPress()
       if (!isMobile || disabled) return
       // If long press opened the menu, don't process the tap
