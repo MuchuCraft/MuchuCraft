@@ -67,6 +67,7 @@ export function loadDepositConfig(tokenConfig, env = process.env) {
     gateMin,
     pollSeconds,
     pageUrl: depositPageUrl(env.SIWS_URI),
+    withdrawUrl: originPath(env.SIWS_URI, '/withdraw'),
     minRaw: parseAmountToRaw(min, tokenConfig.decimals),
     gateMinRaw: parseAmountToRaw(gateMin, tokenConfig.decimals),
   };
@@ -79,10 +80,15 @@ export function loadDepositConfig(tokenConfig, env = process.env) {
  * the in-game /deposit command simply skips its "open the page" line.
  */
 function depositPageUrl(siwsUri) {
+  return originPath(siwsUri, '/deposit');
+}
+
+/** `${origin(siwsUri)}${path}` or null when SIWS_URI is unset/unparseable. */
+function originPath(siwsUri, pathPart) {
   if (!siwsUri) return null;
   try {
     const origin = new URL(siwsUri).origin;
-    return origin && origin !== 'null' ? `${origin}/deposit` : null;
+    return origin && origin !== 'null' ? `${origin}${pathPart}` : null;
   } catch {
     return null;
   }
@@ -501,6 +507,7 @@ export function createDepositWatcher({
           minimum: depositConfig.min,
           gateThreshold: depositConfig.gateMin,
           ...(depositConfig.pageUrl ? { pageUrl: depositConfig.pageUrl } : {}),
+          ...(depositConfig.withdrawUrl ? { withdrawUrl: depositConfig.withdrawUrl } : {}),
         };
         try {
           await (postDepositInfo ?? defaultPostDepositInfo)(body);

@@ -626,6 +626,7 @@ test('deposit-info push: waits for the resolved address, retries with backoff, t
     minimum: '1',
     gateThreshold: '25',
     pageUrl: 'https://web.muchu.app/deposit', // SIWS_URI origin + /deposit
+    withdrawUrl: 'https://web.muchu.app/withdraw', // SIWS_URI origin + /withdraw
   });
   assert.deepEqual(sleeps, [2000, 4000], 'exponential backoff between attempts');
 });

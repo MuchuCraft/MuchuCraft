@@ -26,7 +26,7 @@ final class DepositInfo implements CommandExecutor {
     private final MuchuBridgePlugin plugin;
     private volatile Info info; // null until first push/load
 
-    private record Info(String address, String minimum, String gateThreshold, String pageUrl) {}
+    private record Info(String address, String minimum, String gateThreshold, String pageUrl, String withdrawUrl) {}
 
     DepositInfo(MuchuBridgePlugin plugin) {
         this.plugin = plugin;
@@ -47,7 +47,8 @@ final class DepositInfo implements CommandExecutor {
                     && m.get("minimum") instanceof String minimum
                     && m.get("gateThreshold") instanceof String gateThreshold) {
                 String pageUrl = m.get("pageUrl") instanceof String s ? s : null; // absent pre-pageUrl
-                info = new Info(address, minimum, gateThreshold, pageUrl);
+                String withdrawUrl = m.get("withdrawUrl") instanceof String w ? w : null;
+                info = new Info(address, minimum, gateThreshold, pageUrl, withdrawUrl);
                 plugin.getLogger().info("deposit-info restored from disk (address " + address + ")");
             }
         } catch (Exception e) {
@@ -55,14 +56,15 @@ final class DepositInfo implements CommandExecutor {
         }
     }
 
-    /** Store a validated push from the gateway and persist it (pageUrl may be null). */
-    void set(String address, String minimum, String gateThreshold, String pageUrl) {
-        info = new Info(address, minimum, gateThreshold, pageUrl);
+    /** Store a validated push from the gateway and persist it (URLs may be null). */
+    void set(String address, String minimum, String gateThreshold, String pageUrl, String withdrawUrl) {
+        info = new Info(address, minimum, gateThreshold, pageUrl, withdrawUrl);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("address", address);
         out.put("minimum", minimum);
         out.put("gateThreshold", gateThreshold);
         if (pageUrl != null) out.put("pageUrl", pageUrl);
+        if (withdrawUrl != null) out.put("withdrawUrl", withdrawUrl);
         try {
             Files.createDirectories(plugin.getDataFolder().toPath());
             Files.writeString(file(), Json.write(out), StandardCharsets.UTF_8);
@@ -71,7 +73,8 @@ final class DepositInfo implements CommandExecutor {
         }
         plugin.getLogger().info("deposit-info set: address=" + address
                 + " minimum=" + minimum + " gateThreshold=" + gateThreshold
-                + (pageUrl != null ? " pageUrl=" + pageUrl : ""));
+                + (pageUrl != null ? " pageUrl=" + pageUrl : "")
+                + (withdrawUrl != null ? " withdrawUrl=" + withdrawUrl : ""));
     }
 
     private static final Component PREFIX = Component.text("[MuchuCraft] ", NamedTextColor.AQUA);
@@ -79,9 +82,25 @@ final class DepositInfo implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         Info current = info;
+        boolean isWithdraw = command.getName().equalsIgnoreCase("withdraw");
         if (current == null) {
             sender.sendMessage(PREFIX.append(Component.text(
-                    "Deposits are not configured yet — try again in a minute.", NamedTextColor.GRAY)));
+                    (isWithdraw ? "Withdrawals" : "Deposits") + " are not configured yet — try again in a minute.",
+                    NamedTextColor.GRAY)));
+            return true;
+        }
+        if (isWithdraw) {
+            sender.sendMessage(PREFIX.append(Component.text(
+                    "Withdraw your in-game MUCHU to your bound wallet:", NamedTextColor.GRAY)));
+            if (current.withdrawUrl() != null) {
+                sender.sendMessage(Component.text("Open the withdraw page →", NamedTextColor.LIGHT_PURPLE)
+                        .decorate(TextDecoration.UNDERLINED)
+                        .clickEvent(ClickEvent.openUrl(current.withdrawUrl()))
+                        .hoverEvent(Component.text(current.withdrawUrl(), NamedTextColor.GRAY)));
+            } else {
+                sender.sendMessage(Component.text(
+                        "Open the wallet page where you signed in and use the Withdraw card.", NamedTextColor.GRAY));
+            }
             return true;
         }
         sender.sendMessage(PREFIX.append(Component.text(

@@ -161,6 +161,13 @@ export function createApp({ config, db, netProxy = null, tokenRoutes = null, lim
     res.redirect(301, '/deposit/');
   });
   app.use('/deposit', express.static(depositDir));
+  // Withdraw page (reached from the in-game /withdraw command): pays the
+  // session's bound wallet via POST /api/token/withdraw.
+  app.get('/withdraw', (req, res, next) => {
+    if (req.path.endsWith('/')) return next();
+    res.redirect(301, '/withdraw/');
+  });
+  app.use('/withdraw', express.static(path.join(config.root, 'gateway', 'public', 'withdraw')));
   app.use(express.static(clientDist));
 
   return { app };

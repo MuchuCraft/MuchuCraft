@@ -124,11 +124,21 @@ export function createChain(tokenConfig, overrides = {}) {
     return new RpcUnavailableError(`${what} failed: ${err?.message ?? err}`);
   }
 
-  /** Detect the mint's owner program; cache on success only. */
+  /** Resolve the mint's owner program + decimals; cache on success only.
+   * If MUCHU_TOKEN_PROGRAM is configured we trust it (and MUCHU_DECIMALS) and
+   * skip the on-chain lookup — this lets the treasury ATA be derived and the
+   * system run before the mint is even created (its ATA simply reads as empty
+   * until the token launches and the vault is funded). */
   async function getMintInfo() {
     if (mintInfo) return mintInfo;
     if (!tokenConfig.mint) throw new ChainError('MUCHU_MINT is not configured');
     const mintAddress = address(tokenConfig.mint);
+    if (tokenConfig.tokenProgram) {
+      const owner = tokenConfig.tokenProgram === 'token-2022'
+        ? String(TOKEN_2022_PROGRAM_ADDRESS) : String(TOKEN_PROGRAM_ADDRESS);
+      mintInfo = { address: String(mintAddress), programAddress: owner, program: tokenConfig.tokenProgram, decimals: tokenConfig.decimals };
+      return mintInfo;
+    }
     let res;
     try {
       res = await rpc.getAccountInfo(mintAddress, { encoding: 'base64' }).send();

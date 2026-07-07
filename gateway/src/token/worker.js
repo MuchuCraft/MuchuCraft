@@ -287,11 +287,9 @@ export function createWorker({
   async function processRequested(row) {
     if (pauseReasons.size > 0) return 'paused';
     // Global-cap circuit breaker: the trailing-24h sum INCLUDES this row.
-    if (ledger.globalDailyTotalRaw(now()) > tokenConfig.globalDailyCapRaw) {
-      pauseReasons.set(
-        'global-cap',
-        `global daily withdrawal cap (${tokenConfig.globalDailyCap} MUCHU) reached`,
-      );
+    if (tokenConfig.globalDailyCapRaw != null
+      && ledger.globalDailyTotalRaw(now()) > tokenConfig.globalDailyCapRaw) {
+      pauseReasons.set('global-cap', 'global daily withdrawal cap reached');
       log.error('[token] global daily cap tripped — withdrawals paused');
       return 'paused';
     }

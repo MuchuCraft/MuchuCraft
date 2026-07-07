@@ -29,6 +29,12 @@ public final class MuchuBridgePlugin extends JavaPlugin {
         } else {
             getLogger().warning("/deposit command missing from plugin.yml — in-game deposit info disabled.");
         }
+        var withdrawCommand = getCommand("withdraw");
+        if (withdrawCommand != null) {
+            withdrawCommand.setExecutor(deposits); // same handler, branches on command name
+        } else {
+            getLogger().warning("/withdraw command missing from plugin.yml — in-game withdraw link disabled.");
+        }
         int port = getConfig().getInt("port", 8091);
         String token = getConfig().getString("token", "");
         if (token == null || token.isBlank()) {

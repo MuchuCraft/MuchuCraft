@@ -45,3 +45,8 @@ server/logs-run.out
 e2e/.*-wallet.json
 scripts/screenshots/.screenshot-wallet.json
 website/public/
+
+# user-dropped media (screenshots/recordings shared in chat)
+bug.mp4
+image.png
+*.mp4

@@ -106,7 +106,15 @@ final class BridgeHandler implements HttpHandler {
                     }
                     pageUrl = s;
                 }
-                deposits.set(address, minimum, gateThreshold, pageUrl);
+                String withdrawUrl = null;
+                Object rawWithdrawUrl = body.get("withdrawUrl");
+                if (rawWithdrawUrl != null) {
+                    if (!(rawWithdrawUrl instanceof String s) || !PAGE_URL.matcher(s).matches()) {
+                        throw new ApiError(400, "withdrawUrl must be an http(s) URL");
+                    }
+                    withdrawUrl = s;
+                }
+                deposits.set(address, minimum, gateThreshold, pageUrl, withdrawUrl);
                 send(ex, 200, Json.write(Map.of("ok", true)));
             }
             default -> throw new ApiError(404, "not found");

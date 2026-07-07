@@ -1,5 +1,5 @@
 name: MuchuBridge
-version: 1.2.0
+version: 1.3.0
 main: com.muchucraft.bridge.MuchuBridgePlugin
 api-version: '1.21'
 depend: [Vault]
@@ -9,4 +9,7 @@ author: MuchuCraft
 commands:
   deposit:
     description: Show the MUCHU deposit address for your bound wallet.
+    usage: /<command>
+  withdraw:
+    description: Open the page to withdraw your in-game MUCHU to your wallet.
     usage: /<command>

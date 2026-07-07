@@ -29,26 +29,31 @@ export function loadTokenConfig(rootDir, env = process.env) {
     }
   }
   const decimals = toInt(env.MUCHU_DECIMALS, 6);
-  const caps = {
-    withdrawMin: env.WITHDRAW_MIN || '10',
-    withdrawMaxPerTx: env.WITHDRAW_MAX_PER_TX || '1000',
-    dailyCapPerUser: env.WITHDRAW_DAILY_CAP_PER_USER || '500',
-    globalDailyCap: env.WITHDRAW_GLOBAL_DAILY_CAP || '5000',
-  };
+  // A fixed/daily cap applies ONLY when its env var is set; unset ⇒ unlimited
+  // (null, skipped by the withdraw route). The live limit is the % of the vault.
+  const optRaw = (v) => (v == null || v === '' ? null : parseAmountToRaw(v, decimals));
+  const withdrawMin = env.WITHDRAW_MIN || '1';
+  // Single active cap per SPEC: a withdrawal may take at most this % of the
+  // treasury's current MUCHU balance. 0/unset ⇒ no percentage cap.
+  const withdrawMaxPct = toInt(env.WITHDRAW_MAX_PCT_OF_TREASURY, 0);
   return {
     cluster: env.SOLANA_CLUSTER || 'devnet',
     rpcUrl: env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
     mint: env.MUCHU_MINT || null,
+    // Trust the configured SPL program (token | token-2022) instead of
+    // detecting it on-chain, so the system runs before the mint is created.
+    tokenProgram: (env.MUCHU_TOKEN_PROGRAM || '').toLowerCase() || null,
     decimals,
     treasuryKeypairPath: env.TREASURY_KEYPAIR_PATH || '',
     bridgeUrl: `http://127.0.0.1:${toInt(env.BRIDGE_PORT, 8091)}`,
     bridgeToken: env.BRIDGE_TOKEN || '',
     withdrawalsEnabled: (env.WITHDRAWALS_ENABLED ?? 'true').toLowerCase() !== 'false',
-    ...caps,
-    withdrawMinRaw: parseAmountToRaw(caps.withdrawMin, decimals),
-    withdrawMaxPerTxRaw: parseAmountToRaw(caps.withdrawMaxPerTx, decimals),
-    dailyCapPerUserRaw: parseAmountToRaw(caps.dailyCapPerUser, decimals),
-    globalDailyCapRaw: parseAmountToRaw(caps.globalDailyCap, decimals),
+    withdrawMin,
+    withdrawMinRaw: parseAmountToRaw(withdrawMin, decimals),
+    withdrawMaxPct,
+    withdrawMaxPerTxRaw: optRaw(env.WITHDRAW_MAX_PER_TX),
+    dailyCapPerUserRaw: optRaw(env.WITHDRAW_DAILY_CAP_PER_USER),
+    globalDailyCapRaw: optRaw(env.WITHDRAW_GLOBAL_DAILY_CAP),
   };
 }
 
@@ -71,7 +76,7 @@ function asyncRoute(fn) {
  * @param {{db: object, ledger: object, bridge: object, worker: object, tokenConfig: object}} deps
  * @returns {import('express').Router}
  */
-export function createTokenRoutes({ db, ledger, bridge, worker, tokenConfig }) {
+export function createTokenRoutes({ db, ledger, bridge, worker, chain, tokenConfig }) {
   const router = express.Router();
   router.use(express.json({ limit: '16kb' }));
 
@@ -126,10 +131,10 @@ export function createTokenRoutes({ db, ledger, bridge, worker, tokenConfig }) {
     } else if (ledger.hasInFlight(userId)) {
       withdrawable = false;
       reason = 'a withdrawal is already in progress';
-    } else if (userUsed >= tokenConfig.dailyCapPerUserRaw) {
+    } else if (tokenConfig.dailyCapPerUserRaw != null && userUsed >= tokenConfig.dailyCapPerUserRaw) {
       withdrawable = false;
       reason = 'daily withdrawal cap reached';
-    } else if (globalUsed >= tokenConfig.globalDailyCapRaw) {
+    } else if (tokenConfig.globalDailyCapRaw != null && globalUsed >= tokenConfig.globalDailyCapRaw) {
       withdrawable = false;
       reason = 'global daily withdrawal cap reached';
     }
@@ -140,11 +145,8 @@ export function createTokenRoutes({ db, ledger, bridge, worker, tokenConfig }) {
       ...(reason ? { reason } : {}),
       caps: {
         min: tokenConfig.withdrawMin,
-        maxPerTx: tokenConfig.withdrawMaxPerTx,
-        dailyPerUser: tokenConfig.dailyCapPerUser,
-        globalDaily: tokenConfig.globalDailyCap,
+        maxPctOfVault: tokenConfig.withdrawMaxPct || null,
         userUsedToday: fmt(userUsed),
-        globalUsedToday: fmt(globalUsed),
       },
       treasury: { ok: ws.solvent !== false },
       cluster: tokenConfig.cluster,
@@ -203,17 +205,33 @@ export function createTokenRoutes({ db, ledger, bridge, worker, tokenConfig }) {
     if (raw < tokenConfig.withdrawMinRaw) {
       return res.status(400).json({ error: `minimum withdrawal is ${tokenConfig.withdrawMin} MUCHU` });
     }
-    if (raw > tokenConfig.withdrawMaxPerTxRaw) {
-      return res.status(400).json({
-        error: `maximum per withdrawal is ${tokenConfig.withdrawMaxPerTx} MUCHU`,
-      });
+    // The one active cap: a single withdrawal may take at most N% of the vault's
+    // CURRENT on-chain MUCHU balance. Queried live so it tracks the hot wallet.
+    if (tokenConfig.withdrawMaxPct > 0) {
+      let treasuryRaw;
+      try {
+        ({ tokenRaw: treasuryRaw } = await chain.getTreasuryState());
+      } catch {
+        return res.status(503).json({ error: 'cannot read the vault balance right now, try again shortly' });
+      }
+      const capRaw = (treasuryRaw * BigInt(tokenConfig.withdrawMaxPct)) / 100n;
+      if (raw > capRaw) {
+        return res.status(400).json({
+          error: `a single withdrawal can be at most ${tokenConfig.withdrawMaxPct}% of the vault `
+            + `(${formatRawAmount(capRaw, tokenConfig.decimals)} MUCHU right now)`,
+        });
+      }
     }
-    if (ledger.userDailyTotalRaw(userId, nowMs) + raw > tokenConfig.dailyCapPerUserRaw) {
-      return res.status(429).json({
-        error: `daily withdrawal cap is ${tokenConfig.dailyCapPerUser} MUCHU per player`,
-      });
+    // Optional legacy caps: enforced only when explicitly configured.
+    if (tokenConfig.withdrawMaxPerTxRaw != null && raw > tokenConfig.withdrawMaxPerTxRaw) {
+      return res.status(400).json({ error: `maximum per withdrawal is ${formatRawAmount(tokenConfig.withdrawMaxPerTxRaw, tokenConfig.decimals)} MUCHU` });
     }
-    if (ledger.globalDailyTotalRaw(nowMs) + raw > tokenConfig.globalDailyCapRaw) {
+    if (tokenConfig.dailyCapPerUserRaw != null
+      && ledger.userDailyTotalRaw(userId, nowMs) + raw > tokenConfig.dailyCapPerUserRaw) {
+      return res.status(429).json({ error: 'daily withdrawal cap reached for your account' });
+    }
+    if (tokenConfig.globalDailyCapRaw != null
+      && ledger.globalDailyTotalRaw(nowMs) + raw > tokenConfig.globalDailyCapRaw) {
       return res.status(429).json({ error: 'global daily withdrawal cap reached, try tomorrow' });
     }
     if (ledger.hasInFlight(userId)) {
@@ -283,7 +301,7 @@ export function createTokenModule({ config, tokenConfig, db }) {
   });
   const chain = createChain(tokenConfig);
   const worker = createWorker({ ledger, bridge, chain, tokenConfig });
-  const router = createTokenRoutes({ db, ledger, bridge, worker, tokenConfig });
+  const router = createTokenRoutes({ db, ledger, bridge, worker, chain, tokenConfig });
   return {
     router,
     worker,

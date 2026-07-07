@@ -224,3 +224,29 @@ input::placeholder { color: var(--ink-dim); opacity: 0.7; }
   text-align: center; font-family: var(--mono); font-size: 0.75rem; color: var(--ink-dim);
 }
 .footer-dot { display: none; } /* old decorative dots — gone */
+
+/* ---- wallet connect buttons (restored, editorial style) ---- */
+.wallet-list { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.4rem; }
+.wallet-btn {
+  display: flex; align-items: center; gap: 0.75rem; width: 100%;
+  background: var(--well); border: 1px solid var(--rule); border-radius: 8px;
+  color: var(--ink); font: inherit; text-align: left;
+  padding: 0.7rem 0.9rem; cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.wallet-btn:hover { border-color: var(--accent); background: #191921; }
+.wallet-icon {
+  width: 28px; height: 28px; flex: none; border-radius: 6px;
+  object-fit: contain; background: var(--card); display: grid; place-items: center;
+}
+.wallet-glyph {
+  font-weight: 700; font-size: 0.95rem; color: var(--accent);
+  border: 1px solid var(--rule);
+}
+.wallet-name { flex: 1; font-weight: 700; font-size: 0.95rem; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.wallet-kind {
+  flex: none; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-dim);
+  border: 1px solid var(--rule); border-radius: 999px; padding: 0.12rem 0.5rem;
+}

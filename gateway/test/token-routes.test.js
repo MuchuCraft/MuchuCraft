@@ -160,11 +160,8 @@ test('GET /status: balance, caps, treasury, cluster, mint, bound wallet', async 
   assert.equal(body.reason, undefined);
   assert.deepEqual(body.caps, {
     min: '10',
-    maxPerTx: '1000',
-    dailyPerUser: '500',
-    globalDaily: '5000',
+    maxPctOfVault: null, // TOKEN_ENV sets no WITHDRAW_MAX_PCT_OF_TREASURY
     userUsedToday: '0',
-    globalUsedToday: '0',
   });
   assert.deepEqual(body.treasury, { ok: true });
   assert.equal(body.cluster, 'devnet');

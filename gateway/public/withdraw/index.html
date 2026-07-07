@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0b0d">
+  <title>Withdraw MUCHU — MuchuCraft</title>
+  <link rel="icon" type="image/png" href="./muchu.png">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="card">
+    <header class="head">
+      <div>
+        <h1 class="title">Withdraw <span class="title-accent">MUCHU</span></h1>
+        <p class="tagline">Send your in-game balance to your wallet</p>
+      </div>
+      <span id="cluster-badge" class="cluster-badge hidden"></span>
+    </header>
+
+    <p id="cluster-note" class="muted small cluster-note hidden">
+      MuchuCraft is in beta on Solana <strong>devnet</strong> — withdrawals send devnet MUCHU, not mainnet funds.
+    </p>
+
+    <!-- shown when there is no session token: must sign in via the launcher -->
+    <div id="need-login" class="error hidden" role="alert">
+      Connect your wallet first. <a href="/login/">Open the sign-in page →</a>
+    </div>
+    <div id="load-error" class="error hidden" role="alert"></div>
+
+    <section id="content" class="hidden">
+      <div class="balance-row">
+        <span class="section-title">In-game balance</span>
+        <span id="balance" class="balance">—</span>
+      </div>
+
+      <p class="muted small">Withdraws to your bound wallet: <span id="bound-wallet" class="mono">—</span></p>
+
+      <label class="field-label" for="amount">Amount to withdraw</label>
+      <div class="amount-row">
+        <input id="amount" type="text" inputmode="decimal" placeholder="0.0" autocomplete="off">
+        <button id="max-btn" type="button" class="btn-ghost-sm">Max</button>
+      </div>
+      <p id="limits" class="muted small"></p>
+
+      <button id="withdraw-btn" type="button" class="btn-primary" disabled>Withdraw to my wallet</button>
+
+      <div id="status-box" class="status-box hidden" role="status"></div>
+
+      <h2 class="section-title recent-title">Recent withdrawals</h2>
+      <ul id="recent" class="withdrawal-list"><li class="muted small">None yet.</li></ul>
+    </section>
+
+    <footer class="foot">
+      <a href="/login/">Back to sign-in</a>
+      <span class="dot">·</span>
+      <a href="/deposit/">Deposit instead</a>
+    </footer>
+  </main>
+  <script src="./withdraw.js" defer></script>
+</body>
+</html>
